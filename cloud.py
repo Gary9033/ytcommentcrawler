@@ -9,7 +9,7 @@ import jieba
 from collections import Counter
 import re
 from io import BytesIO
-
+ 
 # ✅ 字型設定必須放最頂端
 FONT_PATH = "C:/Windows/Fonts/msjh.ttc"
 fm.fontManager.addfont(FONT_PATH)
