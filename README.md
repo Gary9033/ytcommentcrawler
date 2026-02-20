@@ -2,7 +2,6 @@
 > A simple way to save your time ~
 
 這是一個用 Python 寫的 YouTube 留言爬蟲工具，可以抓取影片留言並生成文字雲。
-
 ## 🛠 功能特色
 * 自動抓取指定影片的所有留言。
 * 支援文字雲（Word Cloud）生成。
