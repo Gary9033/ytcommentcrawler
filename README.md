@@ -21,18 +21,19 @@
 
 ```bash
 pip install -r requirements.txt
-
+```
 或手動安裝：
-
+```bash
 pip install streamlit google-api-python-client pandas wordcloud plotly matplotlib jieba
-
+```
 ## 🚀 使用方法
 下載或 clone 本專案。
 
 在終端機執行：
 
-bash
+```bash
 streamlit run app.py
+```
 瀏覽器將自動開啟網頁介面。
 
 在輸入框貼上 YouTube 影片網址，點擊「開始執行抓取」。
