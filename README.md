@@ -12,6 +12,9 @@
 
 ## Gallery
 ![YouTube Word Cloud](./doc/logo.png)
+![YouTube Word Cloud](./doc/logo2.png)
+![YouTube Word Cloud](./doc/logo3.png)
+![YouTube Word Cloud](./doc/logo4.png)
 
 ## 📦 安裝需求
 請確保你的電腦已安裝 Python 3.x，並執行以下指令安裝必要套件：
