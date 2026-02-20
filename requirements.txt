@@ -1,4 +1,4 @@
-# YouTube 留言抓取器 - requirements.txt
+# - requirements.txt
 
 streamlit>=1.54.0
 google-api-python-client>=2.179.0
