@@ -20,7 +20,6 @@ plt.rcParams['axes.unicode_minus'] = False
 # --- 設定區 ---
 API_KEY = 'AIzaSyCEzWvL9Zg6HXcPnC94JM_yA6ueP0trFWY'
 
-
 def get_video_id(url):
     if 'shorts/' in url:
         return url.split('shorts/')[1].split('?')[0]
