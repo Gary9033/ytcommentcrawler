@@ -56,11 +56,3 @@ README.md：專案說明文件
 本專案採用 MIT License 授權。
 
 ***
-## 與原版的主要差異
-
-| 項目 | 原版 `cloud.py` | 新版 `app.py` |
-|---|---|---|
-| 執行方式 | `python cloud.py` | `streamlit run app.py` |
-| 介面 | 終端機互動 | 瀏覽器網頁 |
-| 安裝指令 | 4 個套件 | 7 個套件（含 Streamlit、Plotly、jieba） |
-| API 需求 | 視原版而定 | 需要 YouTube Data API 金鑰 |
