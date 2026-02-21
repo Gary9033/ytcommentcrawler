@@ -41,7 +41,7 @@ streamlit run cloud.py
 瀏覽器將自動開啟網頁介面。
 
 在輸入框貼上 YouTube 影片網址，點擊「開始執行抓取」。
-
+***
 📂 檔案結構
 app.py：主程式邏輯（Streamlit 網頁應用）
 
