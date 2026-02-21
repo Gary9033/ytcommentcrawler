@@ -16,6 +16,15 @@
 ![YouTube Word Cloud](./doc/logo3.png)
 ![YouTube Word Cloud](./doc/logo4.png)
 
+## 🚀 使用方法
+下載或 clone 本專案。
+在終端機執行：
+```bash
+git clone https://github.com/Gary9033/ytcommentcrawler.git
+```
+```bash
+cd ytcommentcrawler
+```
 ## 📦 安裝需求
 請確保你的電腦已安裝 **Python 3.10+**，並執行以下指令安裝必要套件：
 
@@ -26,13 +35,8 @@ pip install -r requirements.txt
 ```bash
 pip install streamlit google-api-python-client pandas wordcloud plotly matplotlib jieba
 ```
-## 🚀 使用方法
-下載或 clone 本專案。
-
-在終端機執行：
-
 ```bash
-streamlit run app.py
+streamlit run cloud.py
 ```
 瀏覽器將自動開啟網頁介面。
 
