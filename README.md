@@ -33,10 +33,6 @@ cd ytcommentcrawler
 ```bash
 pip install -r requirements.txt
 ```
-或手動安裝：
-```bash
-pip install streamlit google-api-python-client pandas wordcloud plotly matplotlib jieba
-```
 ```bash
 streamlit run cloud.py
 ```
