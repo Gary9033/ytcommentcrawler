@@ -222,4 +222,14 @@ if st.session_state.result_df is not None:
     )
 
     st.divider()
+     # ✅ 新增：一鍵複製所有留言內容區域
+    st.subheader("📋 複製所有留言內容")
+    all_comments_text = "\n".join(df["內容"].astype(str).tolist())
+    st.text_area(
+        label="所有留言內容（可全選後複製）",
+        value=all_comments_text,
+        height=300,
+    )
+    st.caption("💡 點入文字框後按 Ctrl+A 全選，再按 Ctrl+C 複製全部內容。")
+
     generate_wordcloud(df)
