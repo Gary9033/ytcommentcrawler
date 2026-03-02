@@ -9,7 +9,7 @@ https://desktop-l8029ug.tail4cc5a3.ts.net/
 這是一個用 Python 寫的 YouTube 留言爬蟲工具，可以抓取影片留言並生成文字雲。
 ## 🛠 功能特色
 * 自動抓取指定影片的所有留言。
-* 支援文字雲（Word Cloud）生成。
+* 支援文字雲（Word Cloud）生成。    
 * 自動過濾無效字元。
 
 ## Gallery
