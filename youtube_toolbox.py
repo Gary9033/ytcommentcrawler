@@ -186,7 +186,7 @@ def generate_wordcloud(df: pd.DataFrame):
 @st.cache_resource
 def load_whisper_model() -> WhisperModel:
     """載入並快取 Whisper 模型（只初始化一次，避免每次重新載入）"""
-    return WhisperModel("large-v3-turbo", device="cuda", compute_type="float16")
+    return WhisperModel("large-v3-turbo", device="cuda", compute_type="float32")
 
 
 def download_audio(youtube_url: str, base_path: str) -> str:
