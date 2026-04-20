@@ -1,0 +1,41 @@
+# Streamlit Configuration for YouTube Monster - European Minimal Design
+# Swiss Design System: Clean, Geometric, Generous Whitespace
+
+[theme]
+primaryColor = "#3B82F6"           # Cold blue - primary action color
+backgroundColor = "#0F172A"        # Deep dark background
+secondaryBackgroundColor = "#1E293B"  # Slightly lighter dark for cards/sections
+textColor = "#E2E8F0"              # Light gray - main text
+font = "sans serif"                # System fonts, or load from Google Fonts
+
+# Toggle light/dark mode
+darkMode = true
+
+[client]
+showErrorDetails = false           # Hide technical stack traces from users
+toolbarMode = "minimal"            # Minimal toolbar for cleaner UI
+
+[logger]
+level = "error"                    # Only show errors
+
+[server]
+headless = true
+runOnSave = true
+port = 8501
+
+# Performance optimization
+[client.caching]
+cacheType = "memory"
+maxMsgSize = 50                    # MB
+
+[browser]
+gatherUsageStats = false           # Respect user privacy
+
+# Layout configuration
+[client.layoutSpacing]
+# Control widget spacing for geometric alignment
+horizontalMargin = 20
+verticalMargin = 10
+
+# Custom CSS injection point (will be loaded from styles/european_minimal.css)
+# See main app for st.markdown(CSS, unsafe_allow_html=True)

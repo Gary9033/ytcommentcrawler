@@ -1,228 +1,114 @@
-"""
-合併版：YouTube 留言抓取 + Whisper 語音轉錄工具
-- Tab 1: 留言抓取、文字雲、高頻詞分析 (cloud.py)
-- Tab 2: 影片音訊下載 + Faster-Whisper 語音轉錄 (whisper.py)
+﻿"""
+YouTube 怪獸 - European Minimal Design Edition
+YouTube 留言抓取 + Whisper 語音轉錄工具
 """
 
 import logging
-import os
-import re
-import tempfile
 from collections import Counter
 from io import BytesIO
+from typing import Optional
 
 import jieba
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
-import yt_dlp
-from faster_whisper import WhisperModel
-from googleapiclient.discovery import build
 from wordcloud import STOPWORDS, WordCloud
 
+from modules import (
+    load_css,
+    info_box,
+    extract_video_id,
+    fetch_video_comments,
+    clean_text,
+    get_user_friendly_message,
+    WhisperTranscriber,
+    download_audio,
+    format_transcription,
+    cleanup_audio,
+)
+
 # ── 全域設定 ─────────────────────────────────────────────────────
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+load_css()
+
+st.set_page_config(
+    page_title="YouTube 怪獸",
+    page_icon="🎬",
+    layout="wide"
+)
 
 FONT_PATH = "C:/Windows/Fonts/msjh.ttc"
-fm.fontManager.addfont(FONT_PATH)
-plt.rcParams["font.family"] = "sans-serif"
-plt.rcParams["font.sans-serif"] = ["Microsoft JhengHei", "DejaVu Sans"]
-plt.rcParams["axes.unicode_minus"] = False
+try:
+    fm.fontManager.addfont(FONT_PATH)
+    plt.rcParams["font.sans-serif"] = ["Microsoft JhengHei"]
+except:
+    pass
 
 API_KEY = "AIzaSyCEzWvL9Zg6HXcPnC94JM_yA6ueP0trFWY"
 
 
-# ══════════════════════════════════════════════════════════════════
-#  共用工具
-# ══════════════════════════════════════════════════════════════════
-def get_video_id(url: str) -> str:
-    if "shorts/" in url:
-        return url.split("shorts/")[1].split("?")[0]
-    elif "v=" in url:
-        return url.split("v=")[1].split("&")[0]
-    elif "youtu.be/" in url:
-        return url.split("/")[-1].split("?")[0]
-    return url
-
-
-# ══════════════════════════════════════════════════════════════════
-#  Tab 1：留言抓取相關函式  (cloud.py)
-# ══════════════════════════════════════════════════════════════════
-def get_video_comments(video_id: str):
-    youtube = build("youtube", "v3", developerKey=API_KEY)
-    all_data = []
-    nextPageToken = None
-    status_placeholder = st.empty()
-
+def generate_wordcloud(df):
+    """生成文字雲"""
     try:
-        while True:
-            request = youtube.commentThreads().list(
-                part="snippet,replies",
-                videoId=video_id,
-                maxResults=100,
-                pageToken=nextPageToken,
-                textFormat="plainText",
-            )
-            response = request.execute()
-
-            for item in response["items"]:
-                top = item["snippet"]["topLevelComment"]["snippet"]
-                all_data.append(
-                    {
-                        "類型": "頂層留言",
-                        "使用者": top["authorDisplayName"],
-                        "內容": top["textDisplay"],
-                        "點讚": top["likeCount"],
-                        "時間": top["publishedAt"],
-                    }
-                )
-
-                if "replies" in item:
-                    for reply in item["replies"]["comments"]:
-                        rep = reply["snippet"]
-                        all_data.append(
-                            {
-                                "類型": "└ 留言回覆",
-                                "使用者": rep["authorDisplayName"],
-                                "內容": rep["textDisplay"],
-                                "點讚": rep["likeCount"],
-                                "時間": rep["publishedAt"],
-                            }
-                        )
-
-            status_placeholder.info(f"🚀 已抓取 {len(all_data)} 筆資料...")
-            nextPageToken = response.get("nextPageToken")
-            if not nextPageToken:
-                break
-
-        status_placeholder.empty()
-        return all_data
-    except Exception as e:
-        st.error(f"發生錯誤: {e}")
-        return None
-
-
-def generate_wordcloud(df: pd.DataFrame):
-    # ── 文字清理 ──────────────────────────────────────────
-    all_text = " ".join(df["內容"].astype(str).tolist())
-    all_text = re.sub(r"http\S+|www\S+", "", all_text)
-    all_text = re.sub(r"[^\w\s\u3040-\u30ff\u4e00-\u9fff]", " ", all_text)
-
-    # ── Stopwords ─────────────────────────────────────────
-    custom_stopwords = set(STOPWORDS)
-    custom_stopwords.update(
-        [
+        all_text = " ".join(df["內容"].astype(str).tolist())
+        all_text = clean_text(all_text)
+        
+        custom_stopwords = set(STOPWORDS)
+        custom_stopwords.update([
             "的", "了", "是", "我", "你", "他", "她", "它", "們",
             "在", "也", "都", "就", "和", "有", "不", "這", "那",
-            "一", "嗎", "啊", "吧", "哦", "哈", "好", "說", "來",
-            "去", "會", "要", "可以", "因為", "所以", "但是", "還是",
-            "如果", "這個", "那個", "什麼", "怎麼", "為什麼", "Reply",
-            "replies", "reply", "https", "www", "com", "the", "to",
-            "and", "of", "is", "it", "in", "that", "this",
-        ]
-    )
-
-    # ── jieba 分詞（WordCloud 和 Bar Chart 共用）──────────
-    words = list(jieba.cut(all_text, cut_all=False))
-    words_filtered = [w.strip() for w in words if len(w.strip()) > 1]
-    segmented = " ".join(words_filtered)
-
-    # ── 產生 WordCloud（高解析度）────────────────────────
-    wc = WordCloud(
-        font_path=FONT_PATH,
-        width=2400,
-        height=1200,
-        scale=2,
-        background_color="white",
-        max_words=200,
-        stopwords=custom_stopwords,
-        collocations=False,
-        prefer_horizontal=0.7,
-        min_font_size=10,
-        max_font_size=160,
-        colormap="tab20",
-        random_state=42,
-        regexp=r"[\w\u3040-\u30ff\u4e00-\u9fff]+",
-    ).generate(segmented)
-
-    # ── 顯示 Word Cloud ───────────────────────────────────
-    st.subheader("☁️ 留言 Word Cloud")
-    fig, ax = plt.subplots(figsize=(16, 8), dpi=150)
-    ax.imshow(wc, interpolation="bilinear")
-    ax.axis("off")
-    plt.tight_layout(pad=0)
-    st.pyplot(fig)
-
-    buf = BytesIO()
-    fig.savefig(buf, format="png", dpi=300, bbox_inches="tight")
-    buf.seek(0)
-    st.download_button(
-        label="📥 下載高解析度 Word Cloud PNG",
-        data=buf,
-        file_name="wordcloud_HQ.png",
-        mime="image/png",
-    )
-    plt.close(fig)
-
-    # ── Top 20 高頻詞（真實出現次數）─────────────────────
-    st.subheader("📊 Top 20 高頻詞")
-    words_for_count = [w for w in words_filtered if w not in custom_stopwords]
-    word_count = Counter(words_for_count)
-    top20 = word_count.most_common(20)
-
-    if top20:
-        chart_df = pd.DataFrame(top20, columns=["詞語", "出現次數"])
-        st.dataframe(
-            chart_df.style.bar(subset=["出現次數"], color="#4c9be8", vmin=0),
-            width="stretch",
-            hide_index=True,
-        )
+        ])
+        
+        words = list(jieba.cut(all_text, cut_all=False))
+        words_filtered = [w.strip() for w in words if len(w.strip()) > 1]
+        segmented = " ".join(words_filtered)
+        
+        st.subheader("☁️ 留言文字雲")
+        
+        wc = WordCloud(
+            font_path=FONT_PATH,
+            width=2400,
+            height=1200,
+            background_color="white",
+            max_words=200,
+            stopwords=custom_stopwords,
+        ).generate(segmented)
+        
+        fig, ax = plt.subplots(figsize=(14, 7))
+        ax.imshow(wc, interpolation="bilinear")
+        ax.axis("off")
+        st.pyplot(fig)
+        plt.close(fig)
+        
+        st.subheader("📊 Top 20 高頻詞")
+        words_for_count = [w for w in words_filtered if w not in custom_stopwords]
+        word_count = Counter(words_for_count)
+        top20 = word_count.most_common(20)
+        
+        if top20:
+            chart_df = pd.DataFrame(top20, columns=["詞語", "出現次數"])
+            st.dataframe(chart_df)
+        
+    except Exception as e:
+        info_box(f"文字雲失敗: {str(e)}", box_type="error")
 
 
-# ══════════════════════════════════════════════════════════════════
-#  Tab 2：Whisper 語音轉錄相關函式  (whisper.py)
-# ══════════════════════════════════════════════════════════════════
-@st.cache_resource
-def load_whisper_model() -> WhisperModel:
-    """載入並快取 Whisper 模型（只初始化一次，避免每次重新載入）"""
-    return WhisperModel("large-v3-turbo", device="cuda", compute_type="float32")
+_whisper_transcriber = None
+
+def get_transcriber():
+    """獲取 Whisper 實例"""
+    global _whisper_transcriber
+    if _whisper_transcriber is None:
+        _whisper_transcriber = WhisperTranscriber("large-v3-turbo")
+    return _whisper_transcriber
 
 
-def download_audio(youtube_url: str, base_path: str) -> str:
-    """透過 yt-dlp 下載音訊並轉成 WAV，回傳 wav 路徑"""
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "wav"}],
-        "outtmpl": base_path,
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([youtube_url])
-    return base_path + ".wav"
-
-
-def transcribe_audio(wav_path: str):
-    """使用 Faster-Whisper 轉錄音訊，回傳 (segments, info)"""
-    whisper_model = load_whisper_model()
-    segments, info = whisper_model.transcribe(
-        wav_path,
-        # language="zh",          # 若確定是中文可取消此行的註解
-        # task="translate",       # 若需翻成英文可取消此行的註解
-        vad_filter=True,
-        vad_parameters=dict(min_silence_duration_ms=1000),
-        condition_on_previous_text=False,
-        temperature=0.0,           # 關閉多溫度重試，避免卡死
-        beam_size=1,               # 貪婪搜索，極大化推論速度
-        initial_prompt="這是一段演講與對話。",
-    )
-    return segments, info
-
-
-# ══════════════════════════════════════════════════════════════════
-#  Streamlit 主介面
-# ══════════════════════════════════════════════════════════════════
-
-# --- Session State 初始化 ---
 _defaults = {
     "running": False,
     "result_df": None,
@@ -238,143 +124,174 @@ for key, val in _defaults.items():
 
 def start_comment_fetch():
     st.session_state.running = True
-    st.session_state.result_df = None
 
 
 def start_whisper():
     st.session_state.whisper_running = True
-    st.session_state.transcript_lines = None
-    st.session_state.transcript_info = None
 
 
-st.set_page_config(page_title="YouTube 怪獸", page_icon="🎬", layout="wide")
 st.title("🎬 YouTube 怪獸")
+tab1, tab2 = st.tabs(["📊 留言", "🎙️ 語音"])
 
-tab1, tab2 = st.tabs(["📊留言抓取 & 文字雲", "🎙️語音轉錄(Whisper)"])
-
-
-# ── Tab 1：留言抓取 ────────────────────────────────────────────
 with tab1:
-    st.header("🎥 YouTube 留言抓取tool")
-    st.write("輸入影片網址，自動抓取**所有**留言（包含回覆）並匯出。")
-
-    url_input = st.text_input(
-        "請貼上 YouTube 網址:",
-        placeholder="https://www.youtube.com/watch?v=...",
-        disabled=st.session_state.running,
-        key="comment_url",
-    )
-
-    st.button(
-        "開始執行抓取",
-        disabled=st.session_state.running,
-        on_click=start_comment_fetch,
-    )
-
+    st.header("留言抓取")
+    url = st.text_input("YouTube 網址:", disabled=st.session_state.running, key="url")
+    
+    if st.button("🚀 抓取", on_click=start_comment_fetch):
+        pass
+    
     if st.session_state.running:
-        if not url_input:
-            st.warning("請先輸入網址！")
+        if not url:
+            st.warning("請輸入網址")
             st.session_state.running = False
         else:
-            v_id = get_video_id(url_input)
-            with st.spinner(f"正在深度抓取影片 ID: {v_id} 的全部留言..."):
-                data = get_video_comments(v_id)
-            if data:
-                st.session_state.result_df = pd.DataFrame(data)
-                st.session_state.result_video_id = v_id
-            st.session_state.running = False
-            st.rerun()
-
+            try:
+                v_id = extract_video_id(url)
+                with st.spinner("抓取中..."):
+                    data = fetch_video_comments(v_id, API_KEY)
+                if data:
+                    st.session_state.result_df = pd.DataFrame(data)
+                    st.session_state.result_video_id = v_id
+                st.session_state.running = False
+                st.rerun()
+            except Exception as e:
+                st.error(f"失敗: {str(e)}")
+                st.session_state.running = False
+    
     if st.session_state.result_df is not None:
         df = st.session_state.result_df
-        v_id = st.session_state.result_video_id
-
-        st.success(f"✅ 抓取完成！總計（含回覆）共 {len(df)} 筆資料。")
-        st.dataframe(df, width="stretch")
-
-        csv = df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
-        st.download_button(
-            label="📥 下載完整 CSV 檔案",
-            data=csv,
-            file_name=f"comments_{v_id}.csv",
-            mime="text/csv",
-        )
-
-        st.divider()
-        st.subheader("📋 複製所有留言內容")
-        all_comments_text = "\n".join(df["內容"].astype(str).tolist())
-        st.text_area(
-            label="所有留言內容（可全選後複製）",
-            value=all_comments_text,
-            height=300,
-        )
-        st.caption("💡 點入文字框後按 Ctrl+A 全選，再按 Ctrl+C 複製全部內容。")
-
+        st.success(f"✅ 完成！{len(df)} 筆")
+        st.dataframe(df)
+        
+        csv = df.to_csv(index=False, encoding="utf-8-sig")
+        st.download_button("📥 CSV", csv, f"comments.csv", "text/csv")
+        
         generate_wordcloud(df)
 
-
-# ── Tab 2：Whisper 語音轉錄 ───────────────────────────────────
 with tab2:
-    st.header("🎙️ YouTube 影片語音轉錄工具")
-    st.write(
-        "輸入影片網址，自動下載音訊並使用 **Faster-Whisper large-v3-turbo** 進行轉錄，"
-        "支援 99 種語言。"
-    )
-
-    whisper_url = st.text_input(
-        "請貼上 YouTube 網址:",
-        placeholder="https://www.youtube.com/watch?v=...",
-        disabled=st.session_state.whisper_running,
-        key="whisper_url",
-    )
-
-    st.button(
-        "開始轉錄",
-        disabled=st.session_state.whisper_running,
-        on_click=start_whisper,
-    )
-
+    st.header("語音轉錄")
+    url = st.text_input("YouTube 網址:", disabled=st.session_state.whisper_running, key="whisper")
+    
+    if st.button("🎤 轉錄", on_click=start_whisper):
+        pass
+    
     if st.session_state.whisper_running:
-        if not whisper_url:
-            st.warning("請先輸入網址！")
+        if not url:
+            st.warning("請輸入網址")
             st.session_state.whisper_running = False
         else:
-            with st.spinner("⬇️ 正在下載音訊..."):
-                tmp_base = os.path.join(tempfile.gettempdir(), "temp_audio")
-                wav_path = download_audio(whisper_url, tmp_base)
-
-            with st.spinner("🤖 正在載入模型並轉錄（長影片需要幾分鐘）..."):
-                segments, info = transcribe_audio(wav_path)
-                lines = [
-                    f"[{seg.start:.2f}s -> {seg.end:.2f}s] {seg.text}"
-                    for seg in segments
-                ]
-
-            st.session_state.transcript_lines = lines
-            st.session_state.transcript_info = info
-            st.session_state.whisper_running = False
-
-            if os.path.exists(wav_path):
-                os.remove(wav_path)
-
-            st.rerun()
-
-    if st.session_state.transcript_lines is not None:
-        info = st.session_state.transcript_info
+            audio_path = None
+            try:
+                v_id = extract_video_id(url)
+                with st.spinner("下載中..."):
+                    audio_path = download_audio(v_id, API_KEY)
+                with st.spinner("轉錄中..."):
+                    tr = get_transcriber()
+                    segments, info = tr.transcribe(audio_path)
+                    st.session_state.transcript_lines = segments
+                    st.session_state.transcript_info = info
+                st.session_state.whisper_running = False
+                st.success("✅ 完成！")
+            except Exception as e:
+                st.error(f"失敗: {str(e)}")
+                st.session_state.whisper_running = False
+            finally:
+                # 完成後刪除臨時音檔
+                if audio_path:
+                    cleanup_audio(audio_path)
+    
+    if st.session_state.transcript_lines:
         lines = st.session_state.transcript_lines
-
-        st.success(
-            f"✅ 轉錄完成！預估語言：**{info.language}**，"
-            f"準確率：{info.language_probability:.2%}"
-        )
-
-        transcript_text = "\n".join(lines)
-        st.text_area("📄 轉錄結果", value=transcript_text, height=400)
-        st.caption("💡 點入文字框後按 Ctrl+A 全選，再按 Ctrl+C 複製全部內容。")
-
-        st.download_button(
-            label="📥 下載轉錄文字 TXT",
-            data=transcript_text.encode("utf-8"),
-            file_name="transcript.txt",
-            mime="text/plain",
-        )
+        info = st.session_state.transcript_info if st.session_state.transcript_info else {}
+        
+        st.subheader("📊 轉錄資訊")
+        if info:
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                lang = str(info.language).upper() if hasattr(info, 'language') else 'Unknown'
+                st.metric("🗣️ 語言", lang)
+            
+            with col2:
+                duration = f"{info.duration:.1f}s" if hasattr(info, 'duration') else "N/A"
+                st.metric("⏱️ 時長", duration)
+            
+            with col3:
+                try:
+                    char_count = sum(len(seg.text) for seg in lines)
+                except:
+                    char_count = 0
+                st.metric("📝 字數", char_count)
+            
+            with col4:
+                # 計算語言檢測準確度 (基於語音活動概率)
+                try:
+                    if lines:
+                        speech_probs = []
+                        for seg in lines:
+                            if hasattr(seg, 'no_speech_prob'):
+                                quality = (1 - seg.no_speech_prob) * 100
+                                speech_probs.append(quality)
+                        
+                        if speech_probs:
+                            avg_quality = sum(speech_probs) / len(speech_probs)
+                            st.metric("🎯 檢測準確度", f"{avg_quality:.1f}%")
+                        else:
+                            st.metric("🎯 檢測準確度", "N/A")
+                    else:
+                        st.metric("🎯 檢測準確度", "N/A")
+                except Exception as e:
+                    st.metric("🎯 檢測準確度", "N/A")
+        
+        st.subheader("📄 轉錄內容")
+        
+        try:
+            text = "\n".join([seg.text for seg in lines])
+        except AttributeError:
+            text = "\n".join([str(seg) for seg in lines])
+        
+        st.text_area("轉錄", text, height=300)
+        
+        st.subheader("📥 下載選項")
+        col_dl1, col_dl2, col_dl3 = st.columns(3)
+        
+        with col_dl1:
+            st.download_button("📥 TXT", text, "transcript.txt", "text/plain")
+        
+        with col_dl2:
+            try:
+                srt_lines = []
+                for idx, seg in enumerate(lines, 1):
+                    start_h = int(seg.start) // 3600
+                    start_m = (int(seg.start) % 3600) // 60
+                    start_s = int(seg.start) % 60
+                    start_ms = int((seg.start % 1) * 1000)
+                    end_h = int(seg.end) // 3600
+                    end_m = (int(seg.end) % 3600) // 60
+                    end_s = int(seg.end) % 60
+                    end_ms = int((seg.end % 1) * 1000)
+                    
+                    start_fmt = f"{start_h:02d}:{start_m:02d}:{start_s:02d},{start_ms:03d}"
+                    end_fmt = f"{end_h:02d}:{end_m:02d}:{end_s:02d},{end_ms:03d}"
+                    srt_lines.append(f"{idx}\n{start_fmt} --> {end_fmt}\n{seg.text}\n")
+                srt_content = "\n".join(srt_lines)
+                st.download_button("📥 SRT", srt_content, "transcript.srt", "text/plain")
+            except Exception as e:
+                st.warning(f"SRT 生成失敗: {str(e)}")
+        
+        with col_dl3:
+            import json
+            try:
+                json_data = json.dumps({
+                    "info": {
+                        "language": str(info.language) if hasattr(info, 'language') else None,
+                        "duration": float(info.duration) if hasattr(info, 'duration') else None,
+                    },
+                    "segments": [
+                        {"start": float(seg.start), "end": float(seg.end), "text": seg.text}
+                        for seg in lines
+                    ]
+                }, ensure_ascii=False, indent=2)
+                st.download_button("📥 JSON", json_data, "transcript.json", "application/json")
+            except Exception as e:
+                st.warning(f"JSON 生成失敗: {str(e)}")

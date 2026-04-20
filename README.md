@@ -9,6 +9,8 @@ https://desktop-l8029ug.tail4cc5a3.ts.net/
 * **留言抓取：** 自動抓取指定影片的所有留言（包含頂層與回覆）。
 * **視覺化分析：** 生成高解析度文字雲（Word Cloud）與 Top 20 高頻詞分析柱狀圖。
 * **AI 語音轉錄：** 使用 **Faster-Whisper (large-v3-turbo)** 將影片音訊轉換為文字，支援 99 種語言。
+  - 🎯 實時語言檢測與準確度顯示
+  - 🧹 自動清理臨時音訊檔案
 * **匯出功能：** 支援留言匯出為 CSV，轉錄結果匯出為 TXT，文字雲下載為 PNG。
 
 ## 🚀 從零開始：快速安裝與執行
@@ -55,5 +57,6 @@ streamlit run youtube_toolbox.py
 - **YouTube API Key：** 程式內目前已預填一組 API 金鑰，若因流量限制失效，請至 Google Cloud Console 申請並更換程式碼中的 `API_KEY`。
 - **GPU 加速：** 語音轉錄預設使用 `device="cuda"` (NVIDIA GPU)。如果您的電腦沒有顯卡，請在 `youtube_toolbox.py` 中將其改為 `device="cpu"`。
 - **中文字型：** 預設路徑為 Windows 的 `msjh.ttc`（微軟正黑體）。若在 Linux 或 macOS 上執行，請修改 `FONT_PATH`。
+- **臨時檔案：** 轉錄後的臨時 `.wav` 檔案會自動刪除，但已加入 `.gitignore` 以防意外提交。
 
 📜 本專案採用 MIT License 授權。

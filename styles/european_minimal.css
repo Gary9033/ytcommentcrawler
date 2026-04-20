@@ -1,0 +1,491 @@
+/* 
+European Minimal Geometric Design System
+YouTube Monster - Swiss Design Implementation
+Based on Clean Grid, Generous Whitespace, Geometric Shapes
+*/
+
+/* ===== DESIGN TOKENS ===== */
+:root {
+  /* Color Palette */
+  --primary: #3B82F6;              /* Cold Blue */
+  --primary-light: #0369A1;        /* Dark blue for dark theme */
+  --primary-dark: #1E40AF;         /* Dark blue */
+  
+  --secondary: #10B981;            /* Cold Green - Alternative accent */
+  --secondary-light: #047857;
+  --secondary-dark: #064E3B;
+  
+  --neutral-dark: #E2E8F0;         /* Light text - main text */
+  --neutral-medium: #94A3B8;       /* Medium gray - lighter for dark */
+  --neutral-light: #1E293B;        /* Dark card/surfaces - backgrounds */
+  --neutral-border: #334155;       /* Dark border gray */
+  
+  --white: #0F172A;                /* Deep dark for dark theme */
+  --black: #000000;
+  
+  --background: #0F172A;           /* Deep dark background */
+  --surface: #1E293B;              /* Card/surface color - slightly lighter */
+  --error: #EF4444;
+  --success: #10B981;
+  --warning: #F59E0B;
+  
+  /* Typography */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+  --font-size-base: 16px;
+  --font-size-sm: 14px;
+  --font-size-lg: 18px;
+  --font-size-xl: 24px;
+  --font-size-2xl: 32px;
+  
+  --line-height: 1.6;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* Spacing (8px grid system) */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  
+  /* Borders & Radius */
+  --radius-none: 0px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  
+  --border-width: 1px;
+  --border-width-thick: 2px;
+  
+  /* Shadows - Minimal, geometric */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== GLOBAL STYLES ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height);
+  color: var(--neutral-dark);
+  background-color: var(--background);
+  background: #0F172A;
+}
+
+/* ===== TYPOGRAPHY ===== */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.5px;
+  margin-bottom: var(--space-md);
+}
+
+h1 {
+  font-size: var(--font-size-2xl);
+  line-height: 1.3;
+}
+
+h2 {
+  font-size: var(--font-size-xl);
+  line-height: 1.35;
+}
+
+h3 {
+  font-size: var(--font-size-lg);
+  line-height: 1.4;
+}
+
+p {
+  margin-bottom: var(--space-md);
+  color: var(--neutral-dark);
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+  border-bottom: 1px solid transparent;
+}
+
+a:hover {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* ===== STREAMLIT SPECIFIC OVERRIDES ===== */
+
+/* Main container - European minimal width constraint */
+.main {
+  max-width: 1280px !important;
+  margin: 0 auto !important;
+  padding: var(--space-lg) var(--space-md) !important;
+}
+
+/* Sidebar */
+.css-1d391kg {
+  background-color: var(--surface) !important;
+  border-right: var(--border-width) solid var(--neutral-border) !important;
+}
+
+/* Header area styling */
+[data-testid="stPageTitle"] {
+  font-size: var(--font-size-2xl) !important;
+  font-weight: var(--font-weight-bold) !important;
+  margin-bottom: var(--space-xl) !important;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+/* Divider styling */
+.css-1vhwz33 {
+  background-color: var(--neutral-border) !important;
+  border: none !important;
+  height: 1px !important;
+  margin: var(--space-xl) 0 !important;
+}
+
+/* ===== CARD & CONTAINER STYLES ===== */
+
+/* Block container for sections */
+.block-container {
+  max-width: 1280px !important;
+}
+
+/* Create card-like effect with subtle styling */
+[data-testid="stVerticalBlock"] {
+  background-color: var(--surface) !important;
+  border: var(--border-width) solid var(--neutral-border) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--space-lg) !important;
+  margin-bottom: var(--space-lg) !important;
+  box-shadow: var(--shadow-xs) !important;
+  transition: box-shadow var(--transition-normal),
+              border-color var(--transition-normal) !important;
+}
+
+[data-testid="stVerticalBlock"]:hover {
+  border-color: var(--primary) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* Column containers - geometric grid alignment */
+[data-testid="column"] {
+  padding: var(--space-md) !important;
+}
+
+/* ===== FORM ELEMENTS ===== */
+
+/* Input fields - clean geometric style */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="url"],
+input[type="number"],
+textarea {
+  font-family: var(--font-family) !important;
+  font-size: var(--font-size-base) !important;
+  padding: var(--space-md) var(--space-md) !important;
+  border: var(--border-width) solid var(--neutral-border) !important;
+  border-radius: var(--radius-md) !important;
+  background-color: var(--surface) !important;
+  color: var(--neutral-dark) !important;
+  transition: all var(--transition-fast) !important;
+}
+
+input[type="text"]:hover,
+input[type="password"]:hover,
+input[type="email"]:hover,
+input[type="url"]:hover,
+input[type="number"]:hover,
+textarea:hover {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+input[type="url"]:focus,
+input[type="number"]:focus,
+textarea:focus {
+  outline: none !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25) !important;
+}
+
+/* Placeholder text */
+input::placeholder,
+textarea::placeholder {
+  color: var(--neutral-medium) !important;
+  opacity: 0.6 !important;
+}
+
+/* ===== BUTTONS ===== */
+
+/* Primary buttons - geometric with minimal styling */
+button,
+.stButton > button {
+  font-family: var(--font-family) !important;
+  font-size: var(--font-size-base) !important;
+  font-weight: var(--font-weight-medium) !important;
+  padding: var(--space-md) var(--space-lg) !important;
+  border: var(--border-width) solid transparent !important;
+  border-radius: var(--radius-md) !important;
+  cursor: pointer !important;
+  transition: all var(--transition-fast) !important;
+  letter-spacing: 0.3px;
+  text-transform: none !important;
+}
+
+/* Primary action button */
+.stButton > button {
+  background-color: var(--primary) !important;
+  color: var(--white) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.stButton > button:hover {
+  background-color: var(--primary-dark) !important;
+  box-shadow: var(--shadow-md) !important;
+  transform: translateY(-1px) !important;
+}
+
+.stButton > button:active {
+  transform: translateY(0) !important;
+  box-shadow: var(--shadow-xs) !important;
+}
+
+/* Disabled state */
+.stButton > button:disabled {
+  background-color: var(--neutral-border) !important;
+  color: var(--neutral-medium) !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+
+/* Secondary buttons */
+button[kind="secondary"],
+.stButton[data-testid="baseButton-secondary"] > button {
+  background-color: transparent !important;
+  color: var(--primary) !important;
+  border: var(--border-width) solid var(--primary) !important;
+}
+
+button[kind="secondary"]:hover,
+.stButton[data-testid="baseButton-secondary"] > button:hover {
+  background-color: var(--primary-light) !important;
+  border-color: var(--primary-dark) !important;
+}
+
+/* ===== TABS ===== */
+
+/* Tab styling - geometric */
+[data-testid="stTabs"] {
+  margin-bottom: var(--space-xl) !important;
+}
+
+.stTabs [data-testid="stTabData"] {
+  border-bottom: var(--border-width) solid var(--neutral-border) !important;
+}
+
+/* Tab buttons */
+button[data-testid="stTab"] {
+  padding: var(--space-md) var(--space-lg) !important;
+  border-bottom: var(--border-width-thick) solid transparent !important;
+  background-color: transparent !important;
+  color: var(--neutral-medium) !important;
+  font-weight: var(--font-weight-medium) !important;
+  margin-right: var(--space-md) !important;
+  transition: all var(--transition-fast) !important;
+}
+
+button[data-testid="stTab"]:hover {
+  color: var(--neutral-dark) !important;
+  border-bottom-color: var(--primary) !important;
+}
+
+button[data-testid="stTab"][aria-selected="true"] {
+  color: var(--primary) !important;
+  border-bottom-color: var(--primary) !important;
+}
+
+/* ===== DATA DISPLAY ===== */
+
+/* Table styling */
+table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-size: var(--font-size-sm) !important;
+}
+
+thead {
+  background-color: var(--surface) !important;
+  border-bottom: var(--border-width-thick) solid var(--neutral-border) !important;
+}
+
+th {
+  padding: var(--space-md) !important;
+  text-align: left !important;
+  font-weight: var(--font-weight-semibold) !important;
+  color: var(--neutral-dark) !important;
+}
+
+td {
+  padding: var(--space-md) !important;
+  border-bottom: var(--border-width) solid var(--neutral-border) !important;
+  color: var(--neutral-dark) !important;
+}
+
+tbody tr:hover {
+  background-color: rgba(30, 41, 59, 0.8) !important;
+}
+
+/* Alternating row colors for better readability */
+tbody tr:nth-child(odd) {
+  background-color: var(--white) !important;
+}
+
+tbody tr:nth-child(even) {
+  background-color: rgba(30, 41, 59, 0.4) !important;
+}
+
+/* ===== CHARTS & VISUALIZATIONS ===== */
+
+/* Chart container styling */
+[data-testid="stPlotlyChart"],
+[data-testid="stImage"],
+[data-testid="stMatplotlibChart"] {
+  border: var(--border-width) solid var(--neutral-border) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--space-md) !important;
+  background-color: var(--surface) !important;
+  margin-bottom: var(--space-lg) !important;
+}
+
+/* ===== STATUS & ALERTS ===== */
+
+/* Success message */
+[data-testid="stSuccess"] {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  border: var(--border-width) solid var(--success) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--space-md) !important;
+  color: var(--neutral-dark) !important;
+}
+
+/* Warning message */
+[data-testid="stWarning"] {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  border: var(--border-width) solid var(--warning) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--space-md) !important;
+  color: var(--neutral-dark) !important;
+}
+
+/* Error message */
+[data-testid="stError"] {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  border: var(--border-width) solid var(--error) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--space-md) !important;
+  color: var(--neutral-dark) !important;
+}
+
+/* Info message */
+[data-testid="stInfo"] {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+  border: var(--border-width) solid var(--primary) !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--space-md) !important;
+  color: var(--neutral-dark) !important;
+}
+
+/* ===== DOWNLOAD BUTTONS ===== */
+
+[data-testid="stDownloadButton"] button {
+  background-color: var(--secondary) !important;
+  border-color: var(--secondary) !important;
+}
+
+[data-testid="stDownloadButton"] button:hover {
+  background-color: var(--secondary-dark) !important;
+  border-color: var(--secondary-dark) !important;
+}
+
+/* ===== SPINNERS & LOADING STATES ===== */
+
+[data-testid="stSpinner"] {
+  color: var(--primary) !important;
+}
+
+/* ===== RESPONSIVE UTILITIES ===== */
+
+@media (max-width: 768px) {
+  .main {
+    padding: var(--space-md) var(--space-sm) !important;
+  }
+  
+  h1 {
+    font-size: var(--font-size-xl);
+  }
+  
+  button,
+  .stButton > button {
+    padding: var(--space-md) var(--space-md) !important;
+    font-size: var(--font-size-sm) !important;
+  }
+}
+
+/* ===== DARK MODE SUPPORT (Future) ===== */
+@media (prefers-color-scheme: dark) {
+  /* Placeholder for dark mode - can be implemented later */
+  /* body {
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+  } */
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+.geometric-divider {
+  width: 40px;
+  height: 2px;
+  background-color: var(--primary);
+  margin: var(--space-lg) auto;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-muted {
+  color: var(--neutral-medium);
+}
+
+.space-xl {
+  margin-bottom: var(--space-xl);
+}
+
+.mt-2 {
+  margin-top: var(--space-lg);
+}
+
+.mb-2 {
+  margin-bottom: var(--space-lg);
+}
