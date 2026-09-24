@@ -5,6 +5,7 @@ Transcription Module
 
 import logging
 import os
+import shutil
 import tempfile
 from typing import Tuple, Optional
 
@@ -83,7 +84,7 @@ class WhisperTranscriber:
             raise TranscriptionError(f"語音轉錄失敗: {str(e)}")
 
 
-def download_audio(youtube_url: str, base_path: Optional[str] = None) -> str:
+def download_audio(youtube_url: str, base_path: Optional[str] = None) -> Tuple[str, str]:
     """
     從 YouTube 下載音訊
     
@@ -116,9 +117,47 @@ def download_audio(youtube_url: str, base_path: Optional[str] = None) -> str:
             "quiet": False,
             "no_warnings": False,
         }
+
+        # Newer YouTube extraction requires a JavaScript runtime. Prefer
+        # Deno (yt-dlp's default), but automatically use Node when Deno is
+        # not installed on Windows.
+        js_runtime = None
+        if shutil.which("deno"):
+            js_runtime = "deno"
+        elif shutil.which("node"):
+            js_runtime = "node"
+        if js_runtime:
+            ydl_opts["js_runtimes"] = {js_runtime: {}}
+        else:
+            logger.warning(
+                "找不到 Deno 或 Node.js；請安裝其中一個以支援 YouTube EJS 驗證"
+            )
+
+        # YouTube may require an authenticated browser session when the
+        # current IP is rate-limited or flagged as automated traffic. Do not
+        # read browser cookies unless the user explicitly opts in through an
+        # environment variable.
+        cookie_file = os.getenv("YTDLP_COOKIE_FILE", "").strip()
+        cookies_browser = os.getenv("YTDLP_COOKIES_FROM_BROWSER", "").strip()
+        if cookie_file:
+            if os.path.isfile(cookie_file):
+                ydl_opts["cookiefile"] = cookie_file
+                logger.info("使用 yt-dlp cookies 檔案下載音訊")
+            else:
+                logger.warning("找不到 YTDLP_COOKIE_FILE 指定的檔案: %s", cookie_file)
+        elif cookies_browser:
+            # Examples: chrome, edge, firefox, chrome:Profile 1
+            browser_parts = cookies_browser.split(":", 1)
+            browser_name = browser_parts[0].strip()
+            browser_profile = browser_parts[1].strip() if len(browser_parts) == 2 else None
+            ydl_opts["cookiesfrombrowser"] = (
+                browser_name,
+                browser_profile,
+            )
+            logger.info("使用 %s 瀏覽器 cookies 下載音訊", browser_name)
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([youtube_url])
+            info = ydl.extract_info(youtube_url, download=True)
         
         wav_path = base_path + ".wav"
         
@@ -126,7 +165,7 @@ def download_audio(youtube_url: str, base_path: Optional[str] = None) -> str:
             raise AudioDownloadError("未生成 WAV 文件")
         
         logger.info(f"✓ 音訊下載成功: {wav_path}")
-        return wav_path
+        return wav_path, (info.get("title") or "transcript")
     
     except Exception as e:
         logger.error(f"✗ 音訊下載失敗: {str(e)}")

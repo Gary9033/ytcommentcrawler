@@ -26,7 +26,7 @@ cd ytcommentcrawler
 建議建立獨立環境以避免套件衝突：
 ```bash
 # 建立並進入 Conda 環境
-conda create -n yt_monster python=3.10 -y
+conda create -n yt_monster python=3.11 -y
 conda activate yt_monster
 
 # 安裝音訊處理必備工具 (FFmpeg)

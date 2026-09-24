@@ -4,6 +4,8 @@ YouTube 留言抓取 + Whisper 語音轉錄工具
 """
 
 import logging
+import json
+import re
 from collections import Counter
 from io import BytesIO
 from typing import Optional
@@ -13,6 +15,7 @@ import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from wordcloud import STOPWORDS, WordCloud
 
 from modules import (
@@ -99,6 +102,109 @@ def generate_wordcloud(df):
         info_box(f"文字雲失敗: {str(e)}", box_type="error")
 
 
+def render_copy_comments_button(df):
+    """渲染一鍵複製全部留言的按鈕"""
+    if "內容" not in df.columns:
+        return
+
+    comments = [
+        comment.strip()
+        for comment in df["內容"].dropna().astype(str)
+        if comment.strip()
+    ]
+    if not comments:
+        st.info("沒有可複製的留言內容")
+        return
+
+    comments_text = "\n".join(comments)
+    comments_json = json.dumps(comments_text).replace("</", "<\\/")
+    comments_count = len(comments)
+
+    components.html(
+        f"""
+        <button id="copy-comments-btn" type="button">
+            📋 複製全部留言
+        </button>
+        <span id="copy-comments-status" aria-live="polite"></span>
+        <textarea id="copy-comments-source" aria-hidden="true"></textarea>
+        <style>
+            #copy-comments-btn {{
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 38px;
+                padding: 0 14px;
+                border: 1px solid rgba(49, 51, 63, 0.2);
+                border-radius: 6px;
+                background: #ffffff;
+                color: #31333f;
+                font: 14px/1.2 sans-serif;
+                cursor: pointer;
+            }}
+            #copy-comments-btn:hover {{
+                border-color: rgba(49, 51, 63, 0.45);
+            }}
+            #copy-comments-status {{
+                margin-left: 10px;
+                color: #2e7d32;
+                font: 14px/1.2 sans-serif;
+            }}
+            #copy-comments-source {{
+                position: fixed;
+                left: -9999px;
+                top: 0;
+                opacity: 0;
+            }}
+        </style>
+        <script>
+            const commentsText = {comments_json};
+            const button = document.getElementById("copy-comments-btn");
+            const status = document.getElementById("copy-comments-status");
+            const source = document.getElementById("copy-comments-source");
+
+            function copyWithSelectionFallback() {{
+                source.value = commentsText;
+                source.focus();
+                source.select();
+                const copied = document.execCommand("copy");
+                source.blur();
+                if (!copied) {{
+                    throw new Error("copy command failed");
+                }}
+            }}
+
+            async function copyComments() {{
+                try {{
+                    let copiedByClipboardApi = false;
+                    if (navigator.clipboard && window.isSecureContext) {{
+                        try {{
+                            await navigator.clipboard.writeText(commentsText);
+                            copiedByClipboardApi = true;
+                        }} catch (error) {{
+                            copiedByClipboardApi = false;
+                        }}
+                    }}
+                    if (!copiedByClipboardApi) {{
+                        copyWithSelectionFallback();
+                    }}
+                    status.style.color = "#2e7d32";
+                    status.textContent = "已複製 {comments_count} 筆留言";
+                    window.setTimeout(() => {{
+                        status.textContent = "";
+                    }}, 2200);
+                }} catch (error) {{
+                    status.textContent = "複製失敗，請手動選取或下載 CSV";
+                    status.style.color = "#b3261e";
+                }}
+            }}
+
+            button.addEventListener("click", copyComments);
+        </script>
+        """,
+        height=52,
+    )
+
+
 _whisper_transcriber = None
 
 def get_transcriber():
@@ -109,6 +215,12 @@ def get_transcriber():
     return _whisper_transcriber
 
 
+def safe_filename(name: str, fallback: str = "transcript") -> str:
+    """將影片標題轉成 Windows 可用的檔名。"""
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", str(name)).strip(" .")
+    return name[:180] or fallback
+
+
 _defaults = {
     "running": False,
     "result_df": None,
@@ -116,6 +228,7 @@ _defaults = {
     "whisper_running": False,
     "transcript_lines": None,
     "transcript_info": None,
+    "transcript_title": "transcript",
 }
 for key, val in _defaults.items():
     if key not in st.session_state:
@@ -165,6 +278,7 @@ with tab1:
         
         csv = df.to_csv(index=False, encoding="utf-8-sig")
         st.download_button("📥 CSV", csv, f"comments.csv", "text/csv")
+        render_copy_comments_button(df)
         
         generate_wordcloud(df)
 
@@ -182,14 +296,17 @@ with tab2:
         else:
             audio_path = None
             try:
-                v_id = extract_video_id(url)
                 with st.spinner("下載中..."):
-                    audio_path = download_audio(v_id, API_KEY)
+                    # yt-dlp needs the original YouTube URL.  The API key is
+                    # only used for YouTube Data API comment requests and
+                    # must not be passed as the audio output path.
+                    audio_path, video_title = download_audio(url)
                 with st.spinner("轉錄中..."):
                     tr = get_transcriber()
                     segments, info = tr.transcribe(audio_path)
                     st.session_state.transcript_lines = segments
                     st.session_state.transcript_info = info
+                    st.session_state.transcript_title = safe_filename(video_title)
                 st.session_state.whisper_running = False
                 st.success("✅ 完成！")
             except Exception as e:
@@ -256,7 +373,8 @@ with tab2:
         col_dl1, col_dl2, col_dl3 = st.columns(3)
         
         with col_dl1:
-            st.download_button("📥 TXT", text, "transcript.txt", "text/plain")
+            txt_filename = f"{st.session_state.get('transcript_title', 'transcript')}.txt"
+            st.download_button("📥 TXT", text, txt_filename, "text/plain")
         
         with col_dl2:
             try:
