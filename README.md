@@ -48,7 +48,6 @@ streamlit run youtube_toolbox.py
 
 ## 📂 檔案結構說明
 - `youtube_toolbox.py`：**合併版主程式（最推薦使用）**，包含「留言分析」與「語音轉錄」兩個分頁。
-- `cloud.py`：單純的留言抓取與文字雲生成工具。
 - `requirements.txt`：所有 Python 套件的依賴清單。
 - `doc/`：存放專案展示圖片與 Logo。
 - `GEMINI.md`：提供給 AI 助手的專案開發上下文文件。
