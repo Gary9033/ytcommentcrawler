@@ -11,6 +11,8 @@ https://desktop-l8029ug.tail4cc5a3.ts.net/
 * **AI 語音轉錄：** 使用 **Faster-Whisper (large-v3-turbo)** 將影片音訊轉換為文字，支援 99 種語言。
   - 🎯 實時語言檢測與準確度顯示
   - 🧹 自動清理臨時音訊檔案
+  - ⚡ 批次辨識（預設 4）、跨頁面重跑快取模型，直接解碼下載音訊以省去 WAV 轉檔
+  - ⏱️ 顯示辨識進度與下載／轉錄／總耗時；可指定語言以略過自動偵測
 * **匯出功能：** 支援留言匯出為 CSV，轉錄結果匯出為 TXT，文字雲下載為 PNG。
 
 ## 🚀 從零開始：快速安裝與執行
@@ -54,8 +56,9 @@ streamlit run youtube_toolbox.py
 
 ## ⚠️ 重要提醒
 - **YouTube API Key：** 程式內目前已預填一組 API 金鑰，若因流量限制失效，請至 Google Cloud Console 申請並更換程式碼中的 `API_KEY`。
-- **GPU 加速：** 語音轉錄預設使用 `device="cuda"` (NVIDIA GPU)。如果您的電腦沒有顯卡，請在 `youtube_toolbox.py` 中將其改為 `device="cpu"`。
+- **GPU 加速：** 語音轉錄預設在 `modules/transcription.py` 使用 `device="cuda"`、`compute_type="float16"` (NVIDIA GPU)。批次大小預設為 4，記憶體不足會逐次減半，最後退回原本逐段辨識（1）；重試會從頭開始。批次模式可能改變分段與辨識結果，可選 1 比較。沒有 NVIDIA 顯卡時，需將模型設定改為 `device="cpu"`、`compute_type="int8"`。
+- **轉錄範圍：** 目前會轉錄整部影片，YouTube 網址的 `t=` 播放起點不會裁切音訊。
 - **中文字型：** 預設路徑為 Windows 的 `msjh.ttc`（微軟正黑體）。若在 Linux 或 macOS 上執行，請修改 `FONT_PATH`。
-- **臨時檔案：** 轉錄後的臨時 `.wav` 檔案會自動刪除，但已加入 `.gitignore` 以防意外提交。
+- **臨時檔案：** 直接下載 WebM／M4A 等原始音訊，每次使用獨立的臨時檔名，轉錄後自動刪除。
 
 📜 本專案採用 MIT License 授權。

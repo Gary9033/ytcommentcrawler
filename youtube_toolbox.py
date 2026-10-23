@@ -8,6 +8,7 @@ import json
 import re
 from collections import Counter
 from io import BytesIO
+from time import perf_counter
 from typing import Optional
 
 import jieba
@@ -205,14 +206,10 @@ def render_copy_comments_button(df):
     )
 
 
-_whisper_transcriber = None
-
+@st.cache_resource
 def get_transcriber():
-    """獲取 Whisper 實例"""
-    global _whisper_transcriber
-    if _whisper_transcriber is None:
-        _whisper_transcriber = WhisperTranscriber("large-v3-turbo")
-    return _whisper_transcriber
+    """跨 Streamlit 重跑共用模型，避免每次重新載入 GPU。"""
+    return WhisperTranscriber("large-v3-turbo")
 
 
 def safe_filename(name: str, fallback: str = "transcript") -> str:
@@ -229,6 +226,7 @@ _defaults = {
     "transcript_lines": None,
     "transcript_info": None,
     "transcript_title": "transcript",
+    "transcript_timings": None,
 }
 for key, val in _defaults.items():
     if key not in st.session_state:
@@ -285,6 +283,20 @@ with tab1:
 with tab2:
     st.header("語音轉錄")
     url = st.text_input("YouTube 網址:", disabled=st.session_state.whisper_running, key="whisper")
+    st.caption("轉錄整部影片；網址中的 t= 播放起點不會限制轉錄範圍。")
+    col_language, col_batch = st.columns(2)
+    with col_language:
+        language_label = st.selectbox(
+            "音訊語言", ["自動偵測", "中文", "英文", "日文", "韓文"],
+            disabled=st.session_state.whisper_running,
+            help="已知語言時可直接指定，省去自動語言偵測。",
+        )
+    with col_batch:
+        batch_size = st.selectbox(
+            "批次大小", [1, 2, 4, 8], index=2,
+            disabled=st.session_state.whisper_running,
+            help="同時辨識多段音訊以加快速度。6GB 顯卡可先試 4；記憶體不足會自動降低。1 使用原本逐段模式。",
+        )
     
     if st.button("🎤 轉錄", on_click=start_whisper):
         pass
@@ -296,17 +308,30 @@ with tab2:
         else:
             audio_path = None
             try:
+                total_started = perf_counter()
                 with st.spinner("下載中..."):
                     # yt-dlp needs the original YouTube URL.  The API key is
                     # only used for YouTube Data API comment requests and
                     # must not be passed as the audio output path.
                     audio_path, video_title = download_audio(url)
+                download_seconds = perf_counter() - total_started
+                transcription_started = perf_counter()
+                progress = st.progress(0.0, text="準備轉錄…")
                 with st.spinner("轉錄中..."):
                     tr = get_transcriber()
-                    segments, info = tr.transcribe(audio_path)
+                    language = {"中文": "zh", "英文": "en", "日文": "ja", "韓文": "ko"}.get(language_label)
+                    segments, info = tr.transcribe(
+                        audio_path, language=language, batch_size=batch_size,
+                        progress_callback=lambda fraction, message: progress.progress(fraction, text=message),
+                    )
                     st.session_state.transcript_lines = segments
                     st.session_state.transcript_info = info
                     st.session_state.transcript_title = safe_filename(video_title)
+                    st.session_state.transcript_timings = {
+                        "download": download_seconds,
+                        "transcription": perf_counter() - transcription_started,
+                        "total": perf_counter() - total_started,
+                    }
                 st.session_state.whisper_running = False
                 st.success("✅ 完成！")
             except Exception as e:
@@ -320,6 +345,12 @@ with tab2:
     if st.session_state.transcript_lines:
         lines = st.session_state.transcript_lines
         info = st.session_state.transcript_info if st.session_state.transcript_info else {}
+        timings = st.session_state.transcript_timings
+        if timings:
+            st.caption(
+                f"下載 {timings['download']:.1f} 秒 · 轉錄（含模型載入與前處理）"
+                f" {timings['transcription']:.1f} 秒 · 總計 {timings['total']:.1f} 秒"
+            )
         
         st.subheader("📊 轉錄資訊")
         if info:
