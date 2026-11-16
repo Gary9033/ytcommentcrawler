@@ -2,10 +2,12 @@
 ![License](https://img.shields.io/github/license/Gary9033/ytcommentcrawler)
 ![Repo Size](https://img.shields.io/github/repo-size/Gary9033/ytcommentcrawler)
 ![Stars](https://img.shields.io/github/stars/Gary9033/ytcommentcrawler?style=social)
-https://desktop-l8029ug.tail4cc5a3.ts.net/
+
 > YouTube 留言抓取、文字雲分析與 AI 語音轉錄的一站式工具。
 
 ## 🛠 功能特色
+* **字幕下載：** 在「字幕下載」分頁貼上單一影片網址，讀取清單後選擇人工／自動 CC、語言，按「準備字幕檔」再下載 SRT 或 TXT。只顯示人工上傳或原始語音的字幕，排除 YouTube 即時翻譯字幕。使用 yt-dlp 取得平台現有字幕，格式轉換需要 FFmpeg；無字幕時可改用語音轉錄。支援範圍取決於平台及影片，不包含畫面內燒錄的文字。需登入時可設定 `YTDLP_COOKIE_FILE` 或 `YTDLP_COOKIES_FROM_BROWSER`（例如 `edge`），僅在明確設定後讀取 Cookies。
+  - YouTube 回傳 HTTP 429 時會自動短暫重試。若仍失敗，請稍候 10～30 分鐘，或設定 Cookies 後再試；即時翻譯的自動字幕較容易被限制。
 * **留言抓取：** 自動抓取指定影片的所有留言（包含頂層與回覆）。
 * **視覺化分析：** 生成高解析度文字雲（Word Cloud）與 Top 20 高頻詞分析柱狀圖。
 * **AI 語音轉錄：** 使用 **Faster-Whisper (large-v3-turbo)** 將影片音訊轉換為文字，支援 99 種語言。
