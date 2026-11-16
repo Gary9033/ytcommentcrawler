@@ -479,7 +479,7 @@ with tab3:
                 "字幕語言", sorted(tracks), key=f"cc_language_{source}",
                 format_func=lambda code: f"{code} · {tracks[code][0].get('name') or code}",
             )
-            output_format = st.selectbox("下載格式", ["SRT", "TXT"], key="cc_format")
+            output_format = st.selectbox("下載格式", ["SRT", "TXT"], index=1, key="cc_format")
             selection = (cc_url, source, language, output_format)
             if st.button("準備字幕檔", key="cc_prepare"):
                 st.session_state.pop("cc_result", None)
