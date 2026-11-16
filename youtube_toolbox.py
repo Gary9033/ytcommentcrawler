@@ -18,6 +18,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 from wordcloud import STOPWORDS, WordCloud
+from modules.subtitles import list_subtitles, download_subtitle
 
 from modules import (
     load_css,
@@ -242,7 +243,7 @@ def start_whisper():
 
 
 st.title("🎬 YouTube 怪獸")
-tab1, tab2 = st.tabs(["📊 留言", "🎙️ 語音"])
+tab1, tab2, tab3 = st.tabs(["📊 留言", "🎙️ 語音", "📄 字幕下載"])
 
 with tab1:
     st.header("留言抓取")
@@ -444,3 +445,54 @@ with tab2:
                 st.download_button("📥 JSON", json_data, "transcript.json", "application/json")
             except Exception as e:
                 st.warning(f"JSON 生成失敗: {str(e)}")
+
+with tab3:
+    st.header("字幕下載")
+    st.caption("下載平台提供的 CC，不進行語音辨識；不支援影片畫面內燒錄的字幕。SRT／TXT 轉換需要 FFmpeg。")
+    cc_url = st.text_input("影片網址", key="cc_url").strip()
+    if st.button("讀取字幕清單", key="cc_list"):
+        st.session_state.pop("cc_catalog", None)
+        st.session_state.pop("cc_result", None)
+        if not cc_url:
+            st.warning("請輸入影片網址")
+        else:
+            try:
+                with st.spinner("讀取字幕中…"):
+                    catalog = list_subtitles(cc_url)
+                st.session_state.cc_catalog = (cc_url, catalog)
+            except Exception as e:
+                st.error(f"讀取字幕失敗：{e}")
+    saved_catalog = st.session_state.get("cc_catalog")
+    if saved_catalog and saved_catalog[0] == cc_url:
+        catalog = saved_catalog[1]
+        st.write(catalog["title"])
+        source = st.radio(
+            "字幕來源", ["manual", "automatic"],
+            format_func=lambda value: "人工 CC（原始上傳）" if value == "manual" else "自動 CC（原始語音）",
+            horizontal=True, key="cc_source",
+        )
+        tracks = {code: entries for code, entries in catalog[source].items() if entries}
+        if not tracks:
+            st.info("這部影片沒有此來源的原始字幕。可切換來源，或到「語音」分頁使用 Whisper 轉錄。")
+        else:
+            language = st.selectbox(
+                "字幕語言", sorted(tracks), key=f"cc_language_{source}",
+                format_func=lambda code: f"{code} · {tracks[code][0].get('name') or code}",
+            )
+            output_format = st.selectbox("下載格式", ["SRT", "TXT"], key="cc_format")
+            selection = (cc_url, source, language, output_format)
+            if st.button("準備字幕檔", key="cc_prepare"):
+                st.session_state.pop("cc_result", None)
+                try:
+                    with st.spinner("下載及轉換字幕中…"):
+                        content = download_subtitle(*selection)
+                    st.session_state.cc_result = (selection, content)
+                except Exception as e:
+                    st.error(f"字幕下載失敗：{e}")
+            result = st.session_state.get("cc_result")
+            if result and result[0] == selection:
+                filename = f"{safe_filename(catalog['title'])}.{safe_filename(language)}.{output_format.lower()}"
+                st.download_button(
+                    f"下載 {output_format}", result[1].encode("utf-8-sig"), filename,
+                    mime="text/plain; charset=utf-8", key="cc_download",
+                )
