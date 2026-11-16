@@ -206,7 +206,8 @@ cython_debug/
 *.m4a
 .cursorignore
 .cursorindexingignore
-
+output/
+tool/
 # Marimo
 marimo/_static/
 marimo/_lsp/

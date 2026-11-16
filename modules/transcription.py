@@ -105,7 +105,6 @@ class WhisperTranscriber:
                             temperature=0.0,
                             beam_size=1,
                             without_timestamps=False,
-                            initial_prompt="這是一段演講與對話。",
                             **options,
                         )
                         report(0.0, "前處理完成，開始辨識語音…")
