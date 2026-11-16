@@ -243,7 +243,7 @@ def start_whisper():
 
 
 st.title("🎬 YouTube 怪獸")
-tab1, tab2, tab3 = st.tabs(["📊 留言", "🎙️ 語音", "📄 字幕下載"])
+tab1, tab2, tab3 = st.tabs(["📊 留言", "🎙️ 語音", "📄 CC 字幕下載"])
 
 with tab1:
     st.header("留言抓取")
@@ -447,8 +447,8 @@ with tab2:
                 st.warning(f"JSON 生成失敗: {str(e)}")
 
 with tab3:
-    st.header("字幕下載")
-    st.caption("下載平台提供的 CC，不進行語音辨識；不支援影片畫面內燒錄的字幕。SRT／TXT 轉換需要 FFmpeg。")
+    st.header("CC 字幕下載")
+    st.caption("下載平台提供的 CC，不進行語音辨識；不支援影片畫面內燒錄的字幕")
     cc_url = st.text_input("影片網址", key="cc_url").strip()
     if st.button("讀取字幕清單", key="cc_list"):
         st.session_state.pop("cc_catalog", None)
@@ -481,7 +481,7 @@ with tab3:
             )
             output_format = st.selectbox("下載格式", ["SRT", "TXT"], index=1, key="cc_format")
             selection = (cc_url, source, language, output_format)
-            if st.button("準備字幕檔", key="cc_prepare"):
+            if st.button("轉換字幕檔", key="cc_prepare"):
                 st.session_state.pop("cc_result", None)
                 try:
                     with st.spinner("下載及轉換字幕中…"):
