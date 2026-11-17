@@ -29,6 +29,15 @@ class TranscriptionUITests(unittest.TestCase):
                 patch("modules.WhisperTranscriber", return_value=transcriber) as factory,
                 patch("modules.download_audio", return_value=("test.webm", "測試影片")) as download,
                 patch("modules.cleanup_audio") as cleanup,
+                patch("modules.subtitles.list_subtitles", return_value={
+                    "title": "測試影片",
+                    "manual": {"zh-TW": [{"name": "繁體中文"}]},
+                    "automatic": {"en-orig": [{"name": "English"}]},
+                }),
+                patch(
+                    "modules.subtitles.download_subtitle",
+                    return_value="1\n00:00:00,000 --> 00:00:01,000\n平台字幕\n",
+                ) as cc_download,
             ):
                 app = AppTest.from_file(str(app_path), default_timeout=30).run()
                 self.assertEqual(len(app.exception), 0)
@@ -44,6 +53,13 @@ class TranscriptionUITests(unittest.TestCase):
                 self.assertEqual(app.get("progress")[0].value, 100)
                 self.assertEqual(transcriber.transcribe.call_args.kwargs["language"], "zh")
                 self.assertEqual(transcriber.transcribe.call_args.kwargs["batch_size"], 4)
+                self.assertEqual(app.session_state.transcript_cc["language"], "zh-TW")
+                cc_download.assert_called_once_with(
+                    "https://youtu.be/test", "manual", "zh-TW", "SRT"
+                )
+                download_labels = [button.label for button in app.get("download_button")]
+                self.assertIn("📥 平台 CC SRT", download_labels)
+                self.assertIn("📥 平台 CC TXT", download_labels)
 
                 # A new Streamlit run redefines get_transcriber; its cached resource
                 # must remain the same instead of loading another GPU model.
@@ -52,6 +68,7 @@ class TranscriptionUITests(unittest.TestCase):
                 factory.assert_called_once_with("large-v3-turbo")
                 self.assertEqual(download.call_count, 2)
                 self.assertEqual(cleanup.call_count, 2)
+                self.assertEqual(cc_download.call_count, 2)
         finally:
             st.cache_resource.clear()
 

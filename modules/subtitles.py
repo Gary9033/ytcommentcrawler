@@ -66,6 +66,32 @@ def list_subtitles(url):
     }
 
 
+def choose_subtitle_track(catalog, preferred_language=None):
+    """Choose one original-language CC track, preferring manual and language matches."""
+    preferred_base = str(preferred_language or "").lower().replace("_", "-").split("-")[0]
+
+    def matching_track(source):
+        tracks = catalog.get(source) or {}
+        if not preferred_base:
+            return None
+        for language in sorted(tracks):
+            language_base = language.lower().replace("_", "-").split("-")[0]
+            if language_base == preferred_base and tracks[language]:
+                return source, language
+        return None
+
+    for source in ("manual", "automatic"):
+        match = matching_track(source)
+        if match:
+            return match
+    for source in ("manual", "automatic"):
+        tracks = catalog.get(source) or {}
+        for language in sorted(tracks):
+            if tracks[language]:
+                return source, language
+    return None
+
+
 def srt_to_text(srt):
     lines = []
     for block in re.split(r"\n\s*\n", srt.replace("\r\n", "\n").strip()):

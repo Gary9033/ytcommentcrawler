@@ -15,6 +15,28 @@ spec.loader.exec_module(subtitles)
 
 
 class SubtitleTests(unittest.TestCase):
+    def test_choose_track_prefers_matching_manual_then_matching_automatic(self):
+        catalog = {
+            "manual": {"en": [{"url": "manual"}]},
+            "automatic": {"zh-TW": [{"url": "automatic"}]},
+        }
+        self.assertEqual(
+            subtitles.choose_subtitle_track(catalog, "zh"), ("automatic", "zh-TW")
+        )
+        catalog["manual"]["zh-Hant"] = [{"url": "manual-zh"}]
+        self.assertEqual(
+            subtitles.choose_subtitle_track(catalog, "zh"), ("manual", "zh-Hant")
+        )
+
+    def test_choose_track_falls_back_to_any_manual_track(self):
+        catalog = {
+            "manual": {"ja": [{"url": "manual"}]},
+            "automatic": {"en-orig": [{"url": "automatic"}]},
+        }
+        self.assertEqual(
+            subtitles.choose_subtitle_track(catalog, "ko"), ("manual", "ja")
+        )
+
     def test_txt_removes_timestamps_and_markup(self):
         self.assertEqual(subtitles.srt_to_text(
             '1\r\n00:00:01,000 --> 00:00:02,000\r\n<b>你好</b> &amp; hello\r\n\r\n'
