@@ -1,28 +1,36 @@
-name: Run YouTube Crawler
+name: Tests
 
-# 1. 觸發條件（什麼時候要跑）
 on:
-  schedule:
-    - cron: '0 0 * * *'   # 每天 UTC 00:00（台灣時間 08:00）自動執行
-  workflow_dispatch:      # 允許你在網頁上手動點擊按鈕立刻執行
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
 
-# 2. 執行任務內容
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  run-script:
-    runs-on: ubuntu-latest  # 使用免費額度最高的 Linux 雲端環境
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: 下載專案程式碼
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: 安裝 Python 環境
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: pip
 
-      - name: 安裝相依套件
+      - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
 
-      - name: 執行爬蟲程式
-        run: |
-          python youtube_toolbox.py
+      - name: Run tests
+        run: python -m unittest discover -s tests -v

@@ -5,6 +5,7 @@ YouTube 留言抓取 + Whisper 語音轉錄工具
 
 import logging
 import json
+import os
 import re
 from pathlib import Path
 from collections import Counter
@@ -67,7 +68,7 @@ try:
 except:
     pass
 
-API_KEY = "AIzaSyCEzWvL9Zg6HXcPnC94JM_yA6ueP0trFWY"
+API_KEY = os.getenv("YOUTUBE_API_KEY", "").strip()
 
 
 def generate_wordcloud(df):
@@ -358,6 +359,9 @@ with tab1:
     if st.session_state.running:
         if not url:
             st.warning("請輸入網址")
+            st.session_state.running = False
+        elif not API_KEY:
+            st.error("尚未設定 YOUTUBE_API_KEY，請先以環境變數提供 YouTube Data API 金鑰。")
             st.session_state.running = False
         else:
             try:
