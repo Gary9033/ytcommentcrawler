@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
+from dotenv import load_dotenv
 from wordcloud import STOPWORDS, WordCloud
 from modules.subtitles import (
     choose_subtitle_track,
@@ -52,6 +53,8 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+load_dotenv(Path(__file__).resolve().with_name(".env"))
 
 load_css()
 

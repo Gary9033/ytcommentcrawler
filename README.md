@@ -59,7 +59,7 @@ streamlit run youtube_toolbox.py
 - `GEMINI.md`：提供給 AI 助手的專案開發上下文文件。
 
 ## ⚠️ 重要提醒
-- **YouTube API Key：** 留言抓取功能需要設定 `YOUTUBE_API_KEY` 環境變數，請勿將金鑰提交到版本庫。例如在 PowerShell 執行 `$env:YOUTUBE_API_KEY="你的金鑰"` 後，再啟動 Streamlit。若金鑰曾提交至公開版本庫，請至 Google Cloud Console 撤銷並重新建立。
+- **YouTube API Key：** 將 `.env.example` 複製為 `.env`，填入 `YOUTUBE_API_KEY=你的金鑰` 後再啟動 Streamlit。`.env` 已被 Git 忽略，請勿強制提交；GitHub 只保存不含金鑰的範例檔。若金鑰曾提交至公開版本庫，請至 Google Cloud Console 撤銷並重新建立。
 - **GPU 加速：** 語音轉錄預設在 `modules/transcription.py` 使用 `device="cuda"`、`compute_type="float16"` (NVIDIA GPU)。批次大小預設為 4，記憶體不足會逐次減半，最後退回原本逐段辨識（1）；重試會從頭開始。批次模式可能改變分段與辨識結果，可選 1 比較。沒有 NVIDIA 顯卡時，需將模型設定改為 `device="cpu"`、`compute_type="int8"`。
 - **轉錄範圍：** 目前會轉錄整部影片，YouTube 網址的 `t=` 播放起點不會裁切音訊。
 - **中文字型：** 預設路徑為 Windows 的 `msjh.ttc`（微軟正黑體）。若在 Linux 或 macOS 上執行，請修改 `FONT_PATH`。
