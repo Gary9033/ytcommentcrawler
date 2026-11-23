@@ -42,6 +42,13 @@ from .transcription import (
     cleanup_audio,
 )
 
+from .media_downloader import (
+    MediaDownloadResult,
+    download_media,
+    cleanup_media_download,
+    youtube_thumbnail_url,
+)
+
 __all__ = [
     # UI Components
     "load_css",
@@ -75,4 +82,9 @@ __all__ = [
     "download_audio",
     "format_transcription",
     "cleanup_audio",
+    # Media download
+    "MediaDownloadResult",
+    "download_media",
+    "cleanup_media_download",
+    "youtube_thumbnail_url",
 ]
