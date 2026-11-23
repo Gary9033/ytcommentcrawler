@@ -10,6 +10,25 @@ from streamlit.testing.v1 import AppTest
 
 
 class TranscriptionUITests(unittest.TestCase):
+    def test_incomplete_cc_session_is_reloaded_and_null_sources_are_safe(self):
+        with patch("modules.subtitles.list_subtitles", return_value={
+            "title": "無字幕", "manual": None, "automatic": None,
+        }) as listing:
+            app = AppTest.from_file(
+                str(Path(__file__).resolve().parents[1] / "youtube_toolbox.py"),
+                default_timeout=30,
+            ).run()
+            app.session_state.whisper_cc_preview = {
+                "url": "https://youtu.be/test", "catalog": None,
+                "error": None, "result": None,
+            }
+            app.text_input(key="whisper").set_value("https://youtu.be/test").run()
+            self.assertEqual(len(app.exception), 0)
+            listing.assert_called_once()
+            self.assertTrue(any("沒有可用的 CC" in x.value for x in app.info))
+            app.run()
+            listing.assert_called_once()
+
     def test_settings_progress_timings_and_model_cache_survive_reruns(self):
         st.cache_resource.clear()
         transcriber = Mock()

@@ -285,26 +285,31 @@ def render_transcription_cc_preview(url: str):
         st.session_state.pop("whisper_cc_preview", None)
         return
     saved = st.session_state.get("whisper_cc_preview")
-    if not saved or saved["url"] != url:
+    if (not saved or saved.get("url") != url
+            or (not isinstance(saved.get("catalog"), dict) and not saved.get("error"))):
         saved = {"url": url, "catalog": None, "error": None, "result": None}
-        st.session_state.whisper_cc_preview = saved
         try:
             with st.spinner("檢查影片 CC 字幕中…"):
                 saved["catalog"] = list_subtitles(url)
+                if not isinstance(saved["catalog"], dict):
+                    raise ValueError("未取得有效的字幕清單，請重新檢查")
         except Exception as error:
             saved["error"] = str(error)
-    render_video_preview(url, saved["catalog"]["title"] if saved["catalog"] else None)
+        # Publish only the completed lookup. A rerun must not reuse an
+        # in-progress placeholder whose catalog is still None.
+        st.session_state.whisper_cc_preview = saved
+    catalog = saved.get("catalog") or {}
+    render_video_preview(url, catalog.get("title"))
     if saved["error"]:
         st.warning(f"暫時無法確認 CC 字幕：{saved['error']}。你仍可使用 Whisper 轉錄。")
         if st.button("重新檢查 CC", key="whisper_cc_retry"):
             st.session_state.pop("whisper_cc_preview", None)
             st.rerun()
         return
-    catalog = saved["catalog"]
     tracks = [
         (source, language)
         for source in ("manual", "automatic")
-        for language, entries in sorted(catalog.get(source, {}).items())
+        for language, entries in sorted((catalog.get(source) or {}).items())
         if entries
     ]
     if not tracks:
