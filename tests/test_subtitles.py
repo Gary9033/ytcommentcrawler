@@ -75,6 +75,19 @@ class SubtitleTests(unittest.TestCase):
         self.assertEqual(options["subtitleslangs"], [r"en\.\*"])
         self.assertFalse(Path(options["outtmpl"]).parent.exists())
 
+    @patch.object(subtitles.yt_dlp, "YoutubeDL")
+    def test_chat_replay_is_not_a_caption(self, factory):
+        info = {"subtitles": {"live_chat": [{"ext": "json"}]},
+                "automatic_captions": {"live_chat": [{"ext": "json"}]}}
+        factory.return_value.__enter__.return_value.extract_info.return_value = info
+        catalog = subtitles.list_subtitles("https://example.com/video")
+        self.assertEqual(catalog["manual"], {})
+        self.assertEqual(catalog["automatic"], {})
+        self.assertIsNone(subtitles.choose_subtitle_track(catalog))
+        info["subtitles"]["zh-TW"] = [{"ext": "vtt"}]
+        catalog = subtitles.list_subtitles("https://example.com/video")
+        self.assertEqual(list(catalog["manual"]), ["zh-TW"])
+
     @patch.object(subtitles.shutil, "which", return_value=None)
     def test_missing_ffmpeg_is_actionable(self, which):
         with self.assertRaisesRegex(ValueError, "FFmpeg"):

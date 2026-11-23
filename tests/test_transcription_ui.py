@@ -44,7 +44,7 @@ class TranscriptionUITests(unittest.TestCase):
                 self.assertEqual(app.selectbox[1].value, 4)
                 app.selectbox[0].select("中文")
                 app.text_input(key="whisper").set_value("https://youtu.be/test").run()
-                app.button[1].click().run()
+                app.button(key="whisper_start").click().run()
                 self.assertEqual(len(app.exception), 0)
                 self.assertEqual(len(app.error), 0, [error.value for error in app.error])
                 self.assertFalse(app.session_state.whisper_running)
@@ -63,7 +63,7 @@ class TranscriptionUITests(unittest.TestCase):
 
                 # A new Streamlit run redefines get_transcriber; its cached resource
                 # must remain the same instead of loading another GPU model.
-                app.button[1].click().run()
+                app.button(key="whisper_start").click().run()
                 self.assertEqual(len(app.exception), 0)
                 factory.assert_called_once_with("large-v3-turbo")
                 self.assertEqual(download.call_count, 2)
@@ -71,6 +71,41 @@ class TranscriptionUITests(unittest.TestCase):
                 self.assertEqual(cc_download.call_count, 2)
         finally:
             st.cache_resource.clear()
+
+    def test_cc_preview_avoids_whisper_and_clears_when_url_changes(self):
+        catalog = {
+            "title": "測試影片", "manual": {"zh-TW": [{"name": "繁體中文"}]},
+            "automatic": {},
+        }
+        with (
+            patch("modules.subtitles.list_subtitles", side_effect=[
+                catalog, {"title": "無字幕", "manual": {}, "automatic": {}},
+                RuntimeError("連線失敗"),
+            ]) as listing,
+            patch("modules.subtitles.download_subtitle", return_value=
+                  "1\n00:00:00,000 --> 00:00:01,000\n平台字幕\n") as cc_download,
+            patch("modules.download_audio") as audio,
+            patch("modules.WhisperTranscriber") as whisper,
+        ):
+            app = AppTest.from_file(
+                str(Path(__file__).resolve().parents[1] / "youtube_toolbox.py"),
+                default_timeout=30,
+            ).run()
+            app.text_input(key="whisper").set_value("https://youtu.be/dQw4w9WgXcQ").run()
+            self.assertTrue(any("不必自行語音轉錄" in x.value for x in app.success))
+            self.assertGreater(len(app.get("image")), 0)
+            app.button(key="whisper_cc_prepare").click().run()
+            self.assertEqual(app.text_area(key="whisper_cc_text").value, "平台字幕")
+            cc_download.assert_called_once_with("https://youtu.be/dQw4w9WgXcQ", "manual", "zh-TW", "SRT")
+            listing.assert_called_once()
+            audio.assert_not_called()
+            whisper.assert_not_called()
+            app.text_input(key="whisper").set_value("https://youtu.be/other").run()
+            self.assertFalse(any(x.key == "whisper_cc_text" for x in app.text_area))
+            self.assertTrue(any("沒有可用的 CC" in x.value for x in app.info))
+            app.text_input(key="whisper").set_value("https://youtu.be/error").run()
+            self.assertTrue(any("無法確認 CC" in x.value for x in app.warning))
+            self.assertEqual(len(app.exception), 0)
 
 
 if __name__ == "__main__":

@@ -58,10 +58,14 @@ def list_subtitles(url):
         info = ydl.extract_info(url, download=False)
     if not info or info.get("_type") in ("playlist", "multi_video"):
         raise ValueError("請提供單一影片網址")
-    automatic = info.get("automatic_captions") or {}
+    # yt-dlp exposes chat replay alongside subtitle tracks. It is not CC.
+    manual = {key: entries for key, entries in (info.get("subtitles") or {}).items()
+              if key != "live_chat"}
+    automatic = {key: entries for key, entries in (info.get("automatic_captions") or {}).items()
+                 if key != "live_chat"}
     return {
         "title": info.get("title") or "subtitles",
-        "manual": info.get("subtitles") or {},
+        "manual": manual,
         "automatic": _original_automatic_captions(automatic),
     }
 

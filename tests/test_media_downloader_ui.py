@@ -12,6 +12,7 @@ class MediaDownloaderUITests(unittest.TestCase):
             path=str(Path(__file__).resolve()), title="測試影片", extension="mp4", size=1024,
         )
         with (
+            patch("modules.media_downloader.fetch_video_title", return_value="測試影片") as title,
             patch("modules.media_downloader.download_media", return_value=fake) as download,
             patch("modules.media_downloader.cleanup_media_download"),
         ):
@@ -23,6 +24,7 @@ class MediaDownloaderUITests(unittest.TestCase):
             app.text_input(key="media_url").set_value("https://youtu.be/dQw4w9WgXcQ").run()
             images = app.get("image")
             self.assertEqual(len(images), 1)
+            self.assertTrue(any(item.value == "測試影片" for item in app.subheader))
             self.assertIn("dQw4w9WgXcQ", images[0].proto.imgs[0].url)
             self.assertEqual(images[0].proto.imgs[0].caption, "")
             app.selectbox(key="media_quality_MP4").select("720p")

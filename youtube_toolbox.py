@@ -28,6 +28,7 @@ from modules.subtitles import (
 from modules.media_downloader import (
     cleanup_media_download,
     download_media,
+    fetch_video_title,
     youtube_thumbnail_url,
 )
 
@@ -257,6 +258,85 @@ def start_whisper():
     st.session_state.whisper_running = True
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def get_preview_title(url: str):
+    try:
+        return fetch_video_title(url)
+    except Exception:
+        logger.warning("無法取得影片預覽標題", exc_info=True)
+        return ""
+
+
+def render_video_preview(url: str, title=None):
+    """Show the video title above its thumbnail in every tab."""
+    thumbnail_url = youtube_thumbnail_url(url)
+    if thumbnail_url:
+        title = get_preview_title(url.strip()) if title is None else title
+        if title:
+            st.subheader(title)
+        else:
+            st.caption("暫時無法取得影片標題")
+        st.image(thumbnail_url, width="stretch")
+
+
+def render_transcription_cc_preview(url: str):
+    """Check CC before downloading audio; retain results only for this URL."""
+    if not url.strip():
+        st.session_state.pop("whisper_cc_preview", None)
+        return
+    saved = st.session_state.get("whisper_cc_preview")
+    if not saved or saved["url"] != url:
+        saved = {"url": url, "catalog": None, "error": None, "result": None}
+        st.session_state.whisper_cc_preview = saved
+        try:
+            with st.spinner("檢查影片 CC 字幕中…"):
+                saved["catalog"] = list_subtitles(url)
+        except Exception as error:
+            saved["error"] = str(error)
+    render_video_preview(url, saved["catalog"]["title"] if saved["catalog"] else None)
+    if saved["error"]:
+        st.warning(f"暫時無法確認 CC 字幕：{saved['error']}。你仍可使用 Whisper 轉錄。")
+        if st.button("重新檢查 CC", key="whisper_cc_retry"):
+            st.session_state.pop("whisper_cc_preview", None)
+            st.rerun()
+        return
+    catalog = saved["catalog"]
+    tracks = [
+        (source, language)
+        for source in ("manual", "automatic")
+        for language, entries in sorted(catalog.get(source, {}).items())
+        if entries
+    ]
+    if not tracks:
+        st.info("這部影片沒有可用的 CC 字幕，可以使用下方 Whisper 語音轉錄。")
+        return
+    st.success("✅ 這部影片已有 CC 字幕，可以直接使用，不必自行語音轉錄。")
+
+    def track_label(track):
+        source, language = track
+        name = catalog[source][language][0].get("name") or language
+        kind = "人工 CC" if source == "manual" else "自動 CC"
+        return f"{kind} · {language} · {name}"
+
+    track = st.selectbox(
+        "可用 CC 字幕", tracks, format_func=track_label, key="whisper_cc_track",
+    )
+    if st.button("顯示 CC 字幕（不用轉錄）", key="whisper_cc_prepare"):
+        saved["result"] = None
+        try:
+            with st.spinner("下載 CC 字幕中…"):
+                srt = download_subtitle(url, *track, "SRT")
+            saved["result"] = (track, srt, srt_to_text(srt))
+        except Exception as error:
+            st.warning(f"CC 字幕下載失敗：{error}。可稍後重試或使用 Whisper 轉錄。")
+    result = saved["result"]
+    if result and result[0] == track:
+        st.text_area("平台 CC 字幕內容", result[2], height=250, key="whisper_cc_text")
+        filename = f"{safe_filename(catalog['title'])}.{safe_filename(track[1])}"
+        st.download_button("下載 CC TXT", result[2], f"{filename}.txt", "text/plain", key="whisper_cc_txt")
+        st.download_button("下載 CC SRT", result[1], f"{filename}.srt", "text/plain", key="whisper_cc_srt")
+
+
 st.title("🎬 YouTube 怪獸")
 tab1, tab2, tab3, tab4 = st.tabs([
     "📊 留言", "🎙️ 語音", "📄 CC 字幕下載", "📥 下載影片／音訊",
@@ -265,6 +345,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     st.header("留言抓取")
     url = st.text_input("YouTube 網址:", disabled=st.session_state.running, key="url")
+    render_video_preview(url)
     
     if st.button("🚀 抓取", on_click=start_comment_fetch):
         pass
@@ -301,7 +382,7 @@ with tab1:
 with tab2:
     st.header("語音轉錄")
     url = st.text_input("YouTube 網址:", disabled=st.session_state.whisper_running, key="whisper")
-    st.caption("轉錄整部影片；網址中的 t= 播放起點不會限制轉錄範圍。")
+    render_transcription_cc_preview(url)
     col_language, col_batch = st.columns(2)
     with col_language:
         language_label = st.selectbox(
@@ -316,7 +397,7 @@ with tab2:
             help="同時辨識多段音訊以加快速度。6GB 顯卡可先試 4；記憶體不足會自動降低。1 使用原本逐段模式。",
         )
     
-    if st.button("🎤 轉錄", on_click=start_whisper):
+    if st.button("🎤 轉錄", on_click=start_whisper, key="whisper_start"):
         pass
     
     if st.session_state.whisper_running:
@@ -514,6 +595,7 @@ with tab3:
     st.header("CC 字幕下載")
     st.caption("下載平台提供的 CC，不進行語音辨識；不支援影片畫面內燒錄的字幕")
     cc_url = st.text_input("影片網址", key="cc_url").strip()
+    render_video_preview(cc_url)
     if st.button("讀取字幕清單", key="cc_list"):
         st.session_state.pop("cc_catalog", None)
         st.session_state.pop("cc_result", None)
@@ -568,9 +650,7 @@ with tab4:
         "影片網址", key="media_url", disabled=st.session_state.media_running,
         placeholder="https://www.youtube.com/watch?v=…",
     ).strip()
-    thumbnail_url = youtube_thumbnail_url(media_url)
-    if thumbnail_url:
-        st.image(thumbnail_url, width="stretch")
+    render_video_preview(media_url)
     media_col_type, media_col_quality = st.columns(2)
     with media_col_type:
         media_type = st.segmented_control(

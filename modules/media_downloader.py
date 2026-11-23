@@ -3,18 +3,27 @@
 from __future__ import annotations
 
 import os
+import json
 import re
 import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlparse, urlencode
+from urllib.request import urlopen
 
 import yt_dlp
 
 
 ProgressCallback = Callable[[float, str], None]
+
+
+def fetch_video_title(url: str) -> str:
+    """Read public video metadata without downloading media."""
+    endpoint = "https://www.youtube.com/oembed?" + urlencode({"url": url, "format": "json"})
+    with urlopen(endpoint, timeout=5) as response:
+        return json.load(response).get("title", "")
 
 
 @dataclass(frozen=True)
