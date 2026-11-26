@@ -64,10 +64,10 @@ st.set_page_config(
     layout="wide"
 )
 
-FONT_PATH = "C:/Windows/Fonts/msjh.ttc"
+FONT_PATH = os.getenv("FONT_PATH", "C:/Windows/Fonts/msjh.ttc")
 try:
     fm.fontManager.addfont(FONT_PATH)
-    plt.rcParams["font.sans-serif"] = ["Microsoft JhengHei"]
+    plt.rcParams["font.sans-serif"] = [fm.FontProperties(fname=FONT_PATH).get_name()]
 except:
     pass
 
@@ -259,6 +259,12 @@ def start_comment_fetch():
 
 
 def start_whisper():
+    if st.session_state.whisper_running:
+        return
+    st.session_state.transcript_lines = None
+    st.session_state.transcript_info = None
+    st.session_state.transcript_timings = None
+    st.session_state.transcript_cc = None
     st.session_state.whisper_running = True
 
 
@@ -287,8 +293,15 @@ def render_transcription_cc_preview(url: str):
     """Check CC before downloading audio; retain results only for this URL."""
     if not url.strip():
         st.session_state.pop("whisper_cc_preview", None)
+        st.session_state.transcript_cc = None
+        return
+    if not youtube_thumbnail_url(url):
+        st.session_state.pop("whisper_cc_preview", None)
+        st.session_state.transcript_cc = None
         return
     saved = st.session_state.get("whisper_cc_preview")
+    if saved and saved.get("url") != url:
+        st.session_state.transcript_cc = None
     if (not saved or saved.get("url") != url
             or (not isinstance(saved.get("catalog"), dict) and not saved.get("error"))):
         saved = {"url": url, "catalog": None, "error": None, "result": None}
@@ -353,7 +366,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 
 with tab1:
     st.header("留言抓取")
-    url = st.text_input("YouTube 網址:", disabled=st.session_state.running, key="url")
+    url = st.text_input("YouTube 網址:", disabled=st.session_state.running, key="url", live="500ms")
     render_video_preview(url)
     
     if st.button("🚀 抓取", on_click=start_comment_fetch):
@@ -393,7 +406,10 @@ with tab1:
 
 with tab2:
     st.header("語音轉錄")
-    url = st.text_input("YouTube 網址:", disabled=st.session_state.whisper_running, key="whisper")
+    notice = st.session_state.pop("transcript_notice", None)
+    if notice:
+        getattr(st, notice[0])(notice[1])
+    url = st.text_input("YouTube 網址:", disabled=st.session_state.whisper_running, key="whisper", live="500ms")
     render_transcription_cc_preview(url)
     col_language, col_batch = st.columns(2)
     with col_language:
@@ -409,12 +425,63 @@ with tab2:
             help="同時辨識多段音訊以加快速度。6GB 顯卡可先試 4；記憶體不足會自動降低。1 使用原本逐段模式。",
         )
     
-    if st.button("🎤 轉錄", on_click=start_whisper, key="whisper_start"):
-        pass
+    start_slot = st.empty()
+    was_running = st.session_state.whisper_running
+    if was_running:
+        start_slot.button("⏳ 處理中，請稍候…", disabled=True, key="whisper_busy")
+    else:
+        start_slot.button("🎤 轉錄", on_click=start_whisper, key="whisper_start")
+
+    if st.session_state.whisper_running and url:
+        preview = st.session_state.get("whisper_cc_preview") or {}
+        catalog = preview.get("catalog") if preview.get("url") == url else None
+        if catalog:
+            track = st.session_state.get("whisper_cc_track")
+            if not track or not (catalog.get(track[0]) or {}).get(track[1]):
+                track = choose_subtitle_track(catalog)
+            if track:
+                # A selected CC track is sufficient; never download audio here,
+                # including when downloading that track fails.
+                try:
+                    with st.spinner("下載 CC 字幕中…"):
+                        result = preview.get("result")
+                        srt = (result[1] if result and result[0] == track
+                               else download_subtitle(url, *track, "SRT"))
+                    preview["result"] = (track, srt, srt_to_text(srt))
+                    st.session_state.transcript_title = safe_filename(catalog["title"])
+                    st.session_state.transcript_cc = {
+                        "source": track[0], "language": track[1],
+                        "srt": srt, "txt": srt_to_text(srt),
+                    }
+                    st.session_state.transcript_notice = (
+                        "success", "✅ 已取得 CC 字幕，無須下載音訊或執行語音辨識。",
+                    )
+                except Exception as error:
+                    st.session_state.transcript_notice = ("error", f"CC 字幕下載失敗：{error}。請重試。")
+                finally:
+                    st.session_state.whisper_running = False
+
+    if st.session_state.get("transcript_cc"):
+        cc_result = st.session_state.transcript_cc
+        st.text_area("CC 字幕內容", cc_result["txt"], height=300)
+        cc_base = st.session_state.get("transcript_title", "transcript")
+        cc_col1, cc_col2 = st.columns(2)
+        with cc_col1:
+            st.download_button(
+                "📥 平台 CC TXT", cc_result["txt"].encode("utf-8-sig"),
+                f"{cc_base}.{safe_filename(cc_result['language'])}.cc.txt",
+                "text/plain; charset=utf-8", key="transcript_cc_txt",
+            )
+        with cc_col2:
+            st.download_button(
+                "📥 平台 CC SRT", cc_result["srt"].encode("utf-8-sig"),
+                f"{cc_base}.{safe_filename(cc_result['language'])}.cc.srt",
+                "text/plain; charset=utf-8", key="transcript_cc_srt",
+            )
     
     if st.session_state.whisper_running:
         if not url:
-            st.warning("請輸入網址")
+            st.session_state.transcript_notice = ("warning", "請輸入網址")
             st.session_state.whisper_running = False
         else:
             audio_path = None
@@ -422,7 +489,7 @@ with tab2:
             st.session_state.transcript_cc_error = None
             try:
                 total_started = perf_counter()
-                with st.spinner("下載中..."):
+                with st.spinner("下載影片中…"):
                     # yt-dlp needs the original YouTube URL.  The API key is
                     # only used for YouTube Data API comment requests and
                     # must not be passed as the audio output path.
@@ -445,36 +512,22 @@ with tab2:
                         "transcription": perf_counter() - transcription_started,
                         "total": perf_counter() - total_started,
                     }
-                try:
-                    progress.progress(1.0, text="Whisper 完成，正在檢查平台 CC…")
-                    with st.spinner("同步平台 CC 字幕中..."):
-                        catalog = list_subtitles(url)
-                        preferred_language = language or getattr(info, "language", None)
-                        cc_track = choose_subtitle_track(catalog, preferred_language)
-                        if cc_track:
-                            cc_source, cc_language = cc_track
-                            cc_srt = download_subtitle(url, cc_source, cc_language, "SRT")
-                            st.session_state.transcript_cc = {
-                                "source": cc_source,
-                                "language": cc_language,
-                                "srt": cc_srt,
-                                "txt": srt_to_text(cc_srt),
-                            }
-                except Exception as cc_error:
-                    logger.warning("Whisper 已完成，但平台 CC 取得失敗: %s", cc_error)
-                    st.session_state.transcript_cc_error = str(cc_error)
                 st.session_state.transcript_timings["total"] = perf_counter() - total_started
                 progress.progress(1.0, text="轉錄與字幕準備完成")
                 st.session_state.whisper_running = False
-                st.success("✅ 完成！")
+                st.session_state.transcript_notice = ("success", "✅ 完成！")
             except Exception as e:
-                st.error(f"失敗: {str(e)}")
+                st.session_state.transcript_notice = ("error", f"失敗: {str(e)}")
                 st.session_state.whisper_running = False
             finally:
                 # 完成後刪除臨時音檔
                 if audio_path:
                     cleanup_audio(audio_path)
     
+    if was_running and not st.session_state.whisper_running:
+        # Rebuild every control with the idle state, keeping results in session.
+        st.rerun()
+
     if st.session_state.transcript_lines:
         lines = st.session_state.transcript_lines
         info = st.session_state.transcript_info if st.session_state.transcript_info else {}
@@ -578,35 +631,10 @@ with tab2:
             except Exception as e:
                 st.warning(f"JSON 生成失敗: {str(e)}")
 
-        cc_result = st.session_state.get("transcript_cc")
-        if cc_result:
-            source_label = "人工 CC" if cc_result["source"] == "manual" else "自動 CC"
-            st.subheader("📄 平台 CC 字幕")
-            st.caption(f"{source_label} · {cc_result['language']} · 與 Whisper 結果一併提供")
-            cc_col1, cc_col2 = st.columns(2)
-            cc_base = st.session_state.get("transcript_title", "transcript")
-            with cc_col1:
-                st.download_button(
-                    "📥 平台 CC SRT", cc_result["srt"].encode("utf-8-sig"),
-                    f"{cc_base}.{safe_filename(cc_result['language'])}.cc.srt",
-                    "text/plain; charset=utf-8", key="whisper_cc_srt",
-                )
-            with cc_col2:
-                st.download_button(
-                    "📥 平台 CC TXT", cc_result["txt"].encode("utf-8-sig"),
-                    f"{cc_base}.{safe_filename(cc_result['language'])}.cc.txt",
-                    "text/plain; charset=utf-8", key="whisper_cc_txt",
-                )
-        elif st.session_state.get("transcript_cc_error"):
-            st.caption(
-                "Whisper 已完成；平台 CC 未能一併取得："
-                f"{st.session_state.transcript_cc_error}"
-            )
-
 with tab3:
     st.header("CC 字幕下載")
     st.caption("下載平台提供的 CC，不進行語音辨識；不支援影片畫面內燒錄的字幕")
-    cc_url = st.text_input("影片網址", key="cc_url").strip()
+    cc_url = st.text_input("影片網址", key="cc_url", live="500ms").strip()
     render_video_preview(cc_url)
     if st.button("讀取字幕清單", key="cc_list"):
         st.session_state.pop("cc_catalog", None)
@@ -659,7 +687,7 @@ with tab4:
     st.header("下載影片／音訊")
     st.caption("將單一 YouTube 影片儲存為 MP4，或擷取為 MP3")
     media_url = st.text_input(
-        "影片網址", key="media_url", disabled=st.session_state.media_running,
+        "影片網址", key="media_url", disabled=st.session_state.media_running, live="500ms",
         placeholder="https://www.youtube.com/watch?v=…",
     ).strip()
     render_video_preview(media_url)

@@ -1,0 +1,9 @@
+# Only send application sources to the build; exclude local secrets and media.
+**
+!Dockerfile
+!requirements.txt
+!youtube_toolbox.py
+!modules/
+!modules/*.py
+!styles/
+!styles/*.css

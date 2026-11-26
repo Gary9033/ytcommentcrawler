@@ -1,4 +1,4 @@
-streamlit>=1.54.0
+streamlit>=1.64.0
 google-api-python-client>=2.179.0
 pandas>=2.2.3
 wordcloud>=1.9.4

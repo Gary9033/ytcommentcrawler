@@ -91,6 +91,15 @@ class TranscriptionTests(unittest.TestCase):
             self.transcriber.load_model()
         model.assert_called_once_with("large-v3-turbo", device="cuda", compute_type="float16")
 
+    def test_cpu_environment_uses_int8_and_allows_compute_type_override(self):
+        for explicit_type, expected in (("", "int8"), ("float32", "float32")):
+            with self.subTest(compute_type=explicit_type), patch.dict(os.environ, {
+                "WHISPER_DEVICE": "cpu", "WHISPER_COMPUTE_TYPE": explicit_type,
+            }), patch.object(transcription, "WhisperModel") as model:
+                transcriber = transcription.WhisperTranscriber()
+                transcriber.load_model()
+                model.assert_called_once_with("large-v3-turbo", device="cpu", compute_type=expected)
+
     def test_empty_audio_reaches_completion(self):
         self.transcriber.model.transcribe.return_value = (iter([]), self.info)
         result, _ = self.transcriber.transcribe("silence.webm", batch_size=1)

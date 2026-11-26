@@ -1,0 +1,17 @@
+services:
+  toolbox:
+    build:
+      context: .
+      target: cpu
+    ports:
+      - "127.0.0.1:8502:8501"
+    environment:
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      WHISPER_DEVICE: cpu
+      WHISPER_COMPUTE_TYPE: int8
+    volumes:
+      - model-cache:/home/app/.cache/huggingface
+    restart: unless-stopped
+
+volumes:
+  model-cache:

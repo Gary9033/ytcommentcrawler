@@ -44,8 +44,10 @@ class WhisperTranscriber:
             logger.info(f"正在載入模型: {self.model_name}")
             self.model = WhisperModel(
                 self.model_name,
-                device="cuda",
-                compute_type="float16"
+                device=os.getenv("WHISPER_DEVICE", "cuda"),
+                compute_type=os.getenv("WHISPER_COMPUTE_TYPE") or (
+                    "int8" if os.getenv("WHISPER_DEVICE", "cuda") == "cpu" else "float16"
+                ),
             )
             logger.info("✓ 模型載入成功，耗時 %.1f 秒", perf_counter() - started)
         except Exception as e:
