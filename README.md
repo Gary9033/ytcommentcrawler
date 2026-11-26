@@ -5,6 +5,10 @@
 
 > YouTube 留言抓取、文字雲分析與 AI 語音轉錄的一站式工具。
 
+## 操作展示
+
+https://github.com/user-attachments/assets/18608c94-85e2-474b-8038-e89e1ade1eac
+
 ## 🛠 功能特色
 * **影片／音訊下載：** 貼上單一影片網址，可下載 MP4（最佳畫質、1080p、720p、480p）或 MP3（最高品質、320、192、128 kbps）。下載與轉檔使用 yt-dlp + FFmpeg，不需要 API Key；MP3 碼率不會提高來源本身的音質。
 * **字幕下載：** 在「字幕下載」分頁貼上單一影片網址，讀取清單後選擇人工／自動 CC、語言，按「準備字幕檔」再下載 SRT 或 TXT。只顯示人工上傳或原始語音的字幕，排除 YouTube 即時翻譯字幕。使用 yt-dlp 取得平台現有字幕，格式轉換需要 FFmpeg；無字幕時可改用語音轉錄。支援範圍取決於平台及影片，不包含畫面內燒錄的文字。需登入時可設定 `YTDLP_COOKIE_FILE` 或 `YTDLP_COOKIES_FROM_BROWSER`（例如 `edge`），僅在明確設定後讀取 Cookies。
